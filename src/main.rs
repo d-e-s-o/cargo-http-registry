@@ -9,12 +9,16 @@
 //!
 //! [here]: https://doc.rust-lang.org/cargo/reference/registries.html
 
+mod index;
+
 use std::fmt::Display;
 use std::io::stdout;
 use std::io::Write as _;
 use std::net::IpAddr;
+use std::path::PathBuf;
 use std::process::exit;
 
+use anyhow::Context as _;
 use anyhow::Error;
 use anyhow::Result;
 
@@ -31,6 +35,9 @@ use warp::Filter as _;
 /// A struct defining the accepted arguments.
 #[derive(Debug, StructOpt)]
 pub struct Args {
+  /// The root directory of the registry.
+  #[structopt(name = "REGISTRY_ROOT", parse(from_os_str))]
+  root: PathBuf,
   /// The IP address to serve on.
   #[structopt(short, long, default_value = "127.0.0.1")]
   ip: IpAddr,
@@ -95,6 +102,12 @@ async fn response(result: Result<()>) -> Result<impl warp::Reply, warp::Rejectio
 
 fn run() -> Result<()> {
   let args = Args::from_args_safe()?;
+  let index = index::Index::new(&args.root, &args.ip, args.port).with_context(|| {
+    format!(
+      "failed to create/instantiate crate index at {}",
+      args.root.display()
+    )
+  })?;
 
   let publish = warp::put()
     .and(warp::path("api"))
