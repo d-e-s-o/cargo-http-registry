@@ -1,6 +1,7 @@
 // Copyright (C) 2020 Daniel Mueller <deso@posteo.net>
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+use std::collections::BTreeMap;
 use std::fs::create_dir_all;
 use std::fs::File;
 use std::fs::OpenOptions;
@@ -18,6 +19,64 @@ use serde::Deserialize;
 use serde::Serialize;
 use serde_json::from_reader;
 use serde_json::to_writer_pretty;
+
+
+#[derive(Debug, Serialize)]
+pub struct Dep {
+  /// Name of the dependency. If the dependency is renamed from the
+  /// original package name, this is the new name. The original package
+  /// name is stored in the `package` field.
+  pub name: String,
+  /// The semver requirement for this dependency.
+  /// This must be a valid version requirement defined at
+  /// https://github.com/steveklabnik/semver#requirements.
+  pub req: String,
+  /// Array of features (as strings) enabled for this dependency.
+  pub features: Vec<String>,
+  /// Boolean of whether or not this is an optional dependency.
+  pub optional: bool,
+  /// Boolean of whether or not default features are enabled.
+  pub default_features: bool,
+  /// The target platform for the dependency. null if not a target
+  /// dependency. Otherwise, a string such as "cfg(windows)".
+  pub target: Option<String>,
+  /// The dependency kind.
+  /// Note: this is a required field, but a small number of entries
+  /// exist in the crates.io index with either a missing or null `kind`
+  /// field due to implementation bugs.
+  pub kind: String,
+  /// The URL of the index of the registry where this dependency is from
+  /// as a string. If not specified or null, it is assumed the
+  /// dependency is in the current registry.
+  pub registry: Option<String>,
+  /// If the dependency is renamed, this is a string of the actual
+  /// package name. If not specified or null, this dependency is not
+  /// renamed.
+  pub package: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct Entry {
+  /// The name of the package.
+  /// This must only contain alphanumeric, '-', or '_' characters.
+  pub name: String,
+  /// The version of the package this row is describing. This must be a
+  /// valid version number according to the Semantic Versioning 2.0.0
+  /// spec at https://semver.org/.
+  pub vers: String,
+  /// Array of direct dependencies of the package.
+  pub deps: Vec<Dep>,
+  /// A SHA-256 checksum of the '.crate' file.
+  pub cksum: String,
+  /// Set of features defined for the package. Each feature maps to an
+  /// array of features or dependencies it enables.
+  pub features: BTreeMap<String, Vec<String>>,
+  /// Boolean of whether or not this version has been yanked.
+  pub yanked: bool,
+  /// The `links` string value from the package's manifest, or null if
+  /// not specified. This field is optional and defaults to null.
+  pub links: Option<String>,
+}
 
 
 /// An object representing a config.json file inside the index.
@@ -199,6 +258,12 @@ impl Index {
       Err(err) => return Err(err).context("failed to open/create config.json"),
     }
     Ok(())
+  }
+
+  /// Retrieve the path to the index' root directory.
+  #[inline]
+  pub fn root(&self) -> &Path {
+    &self.root
   }
 }
 

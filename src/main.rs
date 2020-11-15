@@ -10,6 +10,7 @@
 //! [here]: https://doc.rust-lang.org/cargo/reference/registries.html
 
 mod index;
+mod publish;
 
 use std::fmt::Display;
 use std::io::stdout;
@@ -17,6 +18,8 @@ use std::io::Write as _;
 use std::net::IpAddr;
 use std::path::PathBuf;
 use std::process::exit;
+use std::sync::Arc;
+use std::sync::Mutex;
 
 use anyhow::Context as _;
 use anyhow::Error;
@@ -108,6 +111,7 @@ fn run() -> Result<()> {
       args.root.display()
     )
   })?;
+  let index = Arc::new(Mutex::new(index));
 
   let publish = warp::put()
     .and(warp::path("api"))
@@ -119,7 +123,10 @@ fn run() -> Result<()> {
     // We cap total body size to 2 MiB to have some upper bound. I
     // believe that's what crates.io does as well.
     .and(warp::body::content_length_limit(2 * 1024 * 1024))
-    .map(|_| todo!("endpoint not yet implemented"))
+    .map(move |body| {
+      let mut index = index.lock().unwrap();
+      publish::publish_crate(body, &mut index)
+    })
     .and_then(response);
 
   let mut rt = Runtime::new().unwrap();
