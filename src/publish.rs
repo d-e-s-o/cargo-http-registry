@@ -27,6 +27,8 @@ use serde::Serialize;
 use serde_json::from_slice;
 use serde_json::to_writer;
 
+use tracing::warn;
+
 use warp::hyper::body::Bytes;
 
 use crate::index::Entry;
@@ -298,6 +300,10 @@ pub fn publish_crate(mut body: Bytes, index: &mut Index) -> Result<()> {
   index
     .commit(&format!("Add {} in version {}", crate_name, crate_vers))
     .context("failed to commit changes to index")?;
+
+  if !body.is_empty() {
+    warn!("body has {} bytes left", body.len());
+  }
   Ok(())
 }
 

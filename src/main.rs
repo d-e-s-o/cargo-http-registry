@@ -32,6 +32,13 @@ use serde_json::to_string;
 use structopt::StructOpt;
 use tokio::runtime::Runtime;
 
+use tracing::error;
+use tracing::info;
+use tracing::subscriber::set_global_default as set_global_subscriber;
+use tracing_subscriber::filter::LevelFilter;
+use tracing_subscriber::fmt::time::ChronoLocal;
+use tracing_subscriber::FmtSubscriber;
+
 use warp::Filter as _;
 
 
@@ -47,6 +54,9 @@ pub struct Args {
   /// The TCP port to serve on.
   #[structopt(short, long, default_value = "8080")]
   port: u16,
+  /// Increase verbosity (can be supplied multiple times).
+  #[structopt(short = "v", long = "verbose", global = true, parse(from_occurrences))]
+  verbosity: usize,
 }
 
 /// A single error that the registry returns.
@@ -91,8 +101,13 @@ where
 /// Convert a result back into a response.
 async fn response(result: Result<()>) -> Result<impl warp::Reply, warp::Rejection> {
   let error = match result {
-    Ok(()) => String::new(),
+    Ok(()) => {
+      info!("request status: success");
+      String::new()
+    },
     Err(err) => {
+      error!("request status: error: {:#}", err);
+
       let errors = RegistryErrors::from(err);
       to_string(&errors).unwrap_or_else(encode_fallback_error)
     },
@@ -127,7 +142,22 @@ fn run() -> Result<()> {
       let mut index = index.lock().unwrap();
       publish::publish_crate(body, &mut index)
     })
-    .and_then(response);
+    .and_then(response)
+    .with(warp::trace::request());
+
+  let level = match args.verbosity {
+    0 => LevelFilter::WARN,
+    1 => LevelFilter::INFO,
+    2 => LevelFilter::DEBUG,
+    _ => LevelFilter::TRACE,
+  };
+
+  let subscriber = FmtSubscriber::builder()
+    .with_max_level(level)
+    .with_timer(ChronoLocal::rfc3339())
+    .finish();
+
+  set_global_subscriber(subscriber).with_context(|| "failed to set tracing subscriber")?;
 
   let mut rt = Runtime::new().unwrap();
   rt.block_on(warp::serve(publish).run((args.ip, args.port)));
