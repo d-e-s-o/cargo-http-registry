@@ -6,7 +6,7 @@ use std::fs::create_dir_all;
 use std::fs::File;
 use std::fs::OpenOptions;
 use std::io::ErrorKind;
-use std::net::IpAddr;
+use std::net::SocketAddr;
 use std::path::Path;
 use std::path::PathBuf;
 
@@ -95,11 +95,11 @@ pub struct Index {
 }
 
 impl Index {
-  pub fn new<P>(root: P, ip: &IpAddr, port: u16) -> Result<Self>
+  pub fn new<P>(root: P, addr: &SocketAddr) -> Result<Self>
   where
     P: Into<PathBuf>,
   {
-    fn inner(root: PathBuf, ip: &IpAddr, port: u16) -> Result<Index> {
+    fn inner(root: PathBuf, addr: &SocketAddr) -> Result<Index> {
       create_dir_all(&root)
         .with_context(|| format!("failed to create directory {}", root.display()))?;
 
@@ -109,13 +109,13 @@ impl Index {
       let config = root.join("config.json");
       let mut index = Index { root, repository };
       index.ensure_has_commit()?;
-      index.ensure_config(&config, ip, port)?;
+      index.ensure_config(&config, addr)?;
 
       Ok(index)
     }
 
     let root = root.into();
-    inner(root, ip, port)
+    inner(root, addr)
   }
 
   /// Add a file to the index. Note that this operation only stages the
@@ -214,13 +214,13 @@ impl Index {
   }
 
   /// Ensure that a valid `config.json` exists and that it is up-to-date.
-  fn ensure_config(&mut self, path: &Path, ip: &IpAddr, port: u16) -> Result<()> {
+  fn ensure_config(&mut self, path: &Path, addr: &SocketAddr) -> Result<()> {
     let result = OpenOptions::new().read(true).write(true).open(path);
     match result {
       Ok(file) => {
         let mut config = from_reader::<_, Config>(&file).context("failed to parse config.json")?;
         let dl = format!("file://{}/{{crate}}-{{version}}.crate", self.root.display());
-        let api = format!("http://{}:{}", ip, port);
+        let api = format!("http://{}", addr);
         if config.dl != dl || config.api.as_ref() != Some(&api) {
           config.dl = dl;
           config.api = Some(api);
@@ -244,7 +244,7 @@ impl Index {
         let file = File::create(path).context("failed to create config.json")?;
         let config = Config {
           dl: format!("file://{}/{{crate}}-{{version}}.crate", self.root.display()),
-          api: Some(format!("http://{}:{}", ip, port)),
+          api: Some(format!("http://{}", addr)),
         };
         to_writer_pretty(&file, &config).context("failed to write config.json")?;
 
@@ -283,8 +283,8 @@ mod tests {
   #[test]
   fn empty_index_repository() {
     let root = tempdir().unwrap();
-    let ip = IpAddr::from_str("192.168.0.1").unwrap();
-    let index = Index::new(root.as_ref(), &ip, 9999).unwrap();
+    let addr = SocketAddr::from_str("192.168.0.1:9999").unwrap();
+    let index = Index::new(root.as_ref(), &addr).unwrap();
 
     assert_eq!(index.repository.state(), RepositoryState::Clean);
     assert!(index.repository.head().is_ok());
@@ -308,8 +308,8 @@ mod tests {
     // We always assume some valid JSON in the config.
     file.write(br#"{"dl":"foobar"}"#).unwrap();
 
-    let ip = IpAddr::from_str("254.0.0.0").unwrap();
-    let index = Index::new(root.as_ref(), &ip, 1).unwrap();
+    let addr = SocketAddr::from_str("254.0.0.0:1").unwrap();
+    let index = Index::new(root.as_ref(), &addr).unwrap();
 
     assert_eq!(index.repository.state(), RepositoryState::Clean);
     assert!(index.repository.head().is_ok());

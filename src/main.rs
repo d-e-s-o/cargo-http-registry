@@ -15,7 +15,7 @@ mod publish;
 use std::fmt::Display;
 use std::io::stdout;
 use std::io::Write as _;
-use std::net::IpAddr;
+use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::process::exit;
 use std::sync::Arc;
@@ -48,12 +48,10 @@ pub struct Args {
   /// The root directory of the registry.
   #[structopt(name = "REGISTRY_ROOT", parse(from_os_str))]
   root: PathBuf,
-  /// The IP address to serve on.
-  #[structopt(short, long, default_value = "127.0.0.1")]
-  ip: IpAddr,
-  /// The TCP port to serve on.
-  #[structopt(short, long, default_value = "8080")]
-  port: u16,
+  /// The address to serve on. By default we serve on 127.0.0.1 on an
+  /// ephemeral port.
+  #[structopt(short, long, default_value = "127.0.0.1:0")]
+  addr: SocketAddr,
   /// Increase verbosity (can be supplied multiple times).
   #[structopt(short = "v", long = "verbose", global = true, parse(from_occurrences))]
   verbosity: usize,
@@ -120,13 +118,13 @@ async fn response(result: Result<()>) -> Result<impl warp::Reply, warp::Rejectio
 
 fn run() -> Result<()> {
   let args = Args::from_args_safe()?;
-  let index = index::Index::new(&args.root, &args.ip, args.port).with_context(|| {
-    format!(
-      "failed to create/instantiate crate index at {}",
-      args.root.display()
-    )
-  })?;
-  let index = Arc::new(Mutex::new(index));
+  // Unfortunately because of how we have to define our routes in order
+  // to create our server and we need a server in order to bind it while
+  // also needing to bind in order to have the necessary address for the
+  // index we have a circular dependency that we can only resolve by use
+  // of an `Option`. *sadpanda*
+  let shared = Arc::new(Mutex::new(Option::<index::Index>::None));
+  let copy = shared.clone();
 
   let publish = warp::put()
     .and(warp::path("api"))
@@ -139,7 +137,8 @@ fn run() -> Result<()> {
     // believe that's what crates.io does as well.
     .and(warp::body::content_length_limit(2 * 1024 * 1024))
     .map(move |body| {
-      let mut index = index.lock().unwrap();
+      let mut index = copy.lock().unwrap();
+      let mut index = index.as_mut().unwrap();
       publish::publish_crate(body, &mut index)
     })
     .and_then(response)
@@ -159,9 +158,29 @@ fn run() -> Result<()> {
 
   set_global_subscriber(subscriber).with_context(|| "failed to set tracing subscriber")?;
 
+  let server = warp::serve(publish);
   let mut rt = Runtime::new().unwrap();
-  rt.block_on(warp::serve(publish).run((args.ip, args.port)));
-  Ok(())
+
+  rt.block_on(async move {
+    // Despite the claim that this function "Returns [...] a Future that
+    // can be executed on any runtime." not even the call itself can
+    // happen outside of a tokio runtime. Boy.
+    let (addr, serve) = server
+      .try_bind_ephemeral(args.addr)
+      .with_context(|| format!("failed to bind to {}", args.addr))?;
+
+    let index = index::Index::new(&args.root, &addr).with_context(|| {
+      format!(
+        "failed to create/instantiate crate index at {}",
+        args.root.display()
+      )
+    })?;
+
+    *shared.lock().unwrap() = Some(index);
+
+    serve.await;
+    Ok(())
+  })
 }
 
 fn main() {
