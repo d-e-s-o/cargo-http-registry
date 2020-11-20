@@ -106,10 +106,9 @@ impl Index {
       let repository = Repository::init(&root)
         .with_context(|| format!("failed to initialize git repository {}", root.display()))?;
 
-      let config = root.join("config.json");
       let mut index = Index { root, repository };
       index.ensure_has_commit()?;
-      index.ensure_config(&config, addr)?;
+      index.ensure_config(addr)?;
 
       Ok(index)
     }
@@ -214,8 +213,9 @@ impl Index {
   }
 
   /// Ensure that a valid `config.json` exists and that it is up-to-date.
-  fn ensure_config(&mut self, path: &Path, addr: &SocketAddr) -> Result<()> {
-    let result = OpenOptions::new().read(true).write(true).open(path);
+  fn ensure_config(&mut self, addr: &SocketAddr) -> Result<()> {
+    let path = self.root.join("config.json");
+    let result = OpenOptions::new().read(true).write(true).open(&path);
     match result {
       Ok(file) => {
         let mut config = from_reader::<_, Config>(&file).context("failed to parse config.json")?;
@@ -228,7 +228,7 @@ impl Index {
           let file = OpenOptions::new()
             .write(true)
             .truncate(true)
-            .open(path)
+            .open(&path)
             .context("failed to reopen config.json")?;
           to_writer_pretty(&file, &config).context("failed to update config.json")?;
 
@@ -241,7 +241,7 @@ impl Index {
         }
       },
       Err(err) if err.kind() == ErrorKind::NotFound => {
-        let file = File::create(path).context("failed to create config.json")?;
+        let file = File::create(&path).context("failed to create config.json")?;
         let config = Config {
           dl: format!("file://{}/{{crate}}-{{version}}.crate", self.root.display()),
           api: Some(format!("http://{}", addr)),
