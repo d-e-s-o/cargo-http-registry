@@ -158,16 +158,37 @@ fn run() -> Result<()> {
 
   set_global_subscriber(subscriber).with_context(|| "failed to set tracing subscriber")?;
 
-  let server = warp::serve(publish);
   let mut rt = Runtime::new().unwrap();
 
   rt.block_on(async move {
-    // Despite the claim that this function "Returns [...] a Future that
-    // can be executed on any runtime." not even the call itself can
-    // happen outside of a tokio runtime. Boy.
-    let (addr, serve) = server
-      .try_bind_ephemeral(args.addr)
-      .with_context(|| format!("failed to bind to {}", args.addr))?;
+    let mut addr = args.addr;
+    let original_port = addr.port();
+    // If the port is kernel-assigned then see if we can just use the
+    // same one we used last time, to prevent needless updates of our
+    // configuration file.
+    if addr.port() == 0 {
+      if let Ok(port) = index::Index::try_read_port(&args.root) {
+        addr.set_port(port)
+      }
+    }
+
+    let (addr, serve) = loop {
+      // Despite the claim that this function "Returns [...] a Future that
+      // can be executed on any runtime." not even the call itself can
+      // happen outside of a tokio runtime. Boy.
+      let result = warp::serve(publish.clone())
+        .try_bind_ephemeral(addr)
+        .with_context(|| format!("failed to bind to {}", addr));
+
+      match result {
+        Ok(result) => break result,
+        Err(_) if addr.port() != original_port => {
+          // We retry with the original port.
+          addr.set_port(original_port);
+        },
+        Err(err) => return Err(err),
+      }
+    };
 
     let index = index::Index::new(&args.root, &addr).with_context(|| {
       format!(

@@ -9,7 +9,9 @@ use std::io::ErrorKind;
 use std::net::SocketAddr;
 use std::path::Path;
 use std::path::PathBuf;
+use std::str::FromStr as _;
 
+use anyhow::anyhow;
 use anyhow::Context as _;
 use anyhow::Result;
 
@@ -19,6 +21,19 @@ use serde::Deserialize;
 use serde::Serialize;
 use serde_json::from_reader;
 use serde_json::to_writer_pretty;
+
+
+/// Parse the port from the given URL.
+fn parse_port(url: &str) -> Result<u16> {
+  let addr = url
+    .split('/')
+    .skip(2)
+    .next()
+    .ok_or_else(|| anyhow!("provided URL {} has unexpected format", url))?;
+  let addr =
+    SocketAddr::from_str(&addr).with_context(|| format!("failed to parse address {}", addr))?;
+  Ok(addr.port())
+}
 
 
 #[derive(Debug, Serialize)]
@@ -197,6 +212,19 @@ impl Index {
     Ok(())
   }
 
+  /// Try to read the port on which the index' API was served last time
+  /// from the configuration file.
+  pub fn try_read_port(root: &Path) -> Result<u16> {
+    let config = root.join("config.json");
+    let file = File::open(&config).context("failed to open config.json")?;
+    let config = from_reader::<_, Config>(&file).context("failed to parse config.json")?;
+
+    config
+      .api
+      .ok_or_else(|| anyhow!("no API URL present in config"))
+      .and_then(|api| parse_port(&api))
+  }
+
   /// Ensure that an initial git commit exists.
   fn ensure_has_commit(&mut self) -> Result<()> {
     let empty = self
@@ -279,6 +307,15 @@ mod tests {
 
   use tempfile::tempdir;
 
+
+  #[test]
+  fn url_port_parsing() {
+    let port = parse_port("http://127.0.0.1:36527").unwrap();
+    assert_eq!(port, 36527);
+
+    let port = parse_port("https://192.168.0.254:1").unwrap();
+    assert_eq!(port, 1);
+  }
 
   #[test]
   fn empty_index_repository() {
