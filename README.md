@@ -3,6 +3,8 @@
 cargo-http-registry
 ===================
 
+- [Changelog](CHANGELOG.md)
+
 `cargo-http-registry` is a cargo registry allowing for quick publishing
 of crates when using `crates.io` is just not desired.
 

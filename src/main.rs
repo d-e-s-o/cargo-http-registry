@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Daniel Mueller <deso@posteo.net>
+// Copyright (C) 2020-2021 Daniel Mueller <deso@posteo.net>
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 //! A crate providing a cargo registry accessible over HTTP.
@@ -30,7 +30,7 @@ use serde::Deserialize;
 use serde::Serialize;
 use serde_json::to_string;
 use structopt::StructOpt;
-use tokio::runtime::Runtime;
+use tokio::runtime::Builder;
 
 use tracing::error;
 use tracing::info;
@@ -158,8 +158,7 @@ fn run() -> Result<()> {
 
   set_global_subscriber(subscriber).with_context(|| "failed to set tracing subscriber")?;
 
-  let mut rt = Runtime::new().unwrap();
-
+  let rt = Builder::new_current_thread().enable_io().build().unwrap();
   rt.block_on(async move {
     let mut addr = args.addr;
     let original_port = addr.port();
