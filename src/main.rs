@@ -40,6 +40,7 @@ use tracing_subscriber::fmt::time::ChronoLocal;
 use tracing_subscriber::FmtSubscriber;
 
 use warp::Filter as _;
+use warp::Reply as _;
 
 
 /// A struct defining the accepted arguments.
@@ -97,22 +98,27 @@ where
 }
 
 /// Convert a result back into a response.
-async fn response(result: Result<()>) -> Result<impl warp::Reply, warp::Rejection> {
-  let error = match result {
-    Ok(()) => {
+async fn response<T>(result: Result<T>) -> Result<impl warp::Reply, warp::Rejection>
+where
+  T: warp::Reply,
+{
+  let response = match result {
+    Ok(inner) => {
       info!("request status: success");
-      String::new()
+      inner.into_response()
     },
     Err(err) => {
       error!("request status: error: {:#}", err);
 
       let errors = RegistryErrors::from(err);
-      to_string(&errors).unwrap_or_else(encode_fallback_error)
+      to_string(&errors)
+        .unwrap_or_else(encode_fallback_error)
+        .into_response()
     },
   };
   // Registries always respond with OK and use the JSON error array to
   // indicate problems.
-  let reply = warp::reply::with_status(error, StatusCode::OK);
+  let reply = warp::reply::with_status(response, StatusCode::OK);
   Ok(reply)
 }
 
@@ -139,7 +145,7 @@ fn run() -> Result<()> {
     .map(move |body| {
       let mut index = copy.lock().unwrap();
       let mut index = index.as_mut().unwrap();
-      publish::publish_crate(body, &mut index)
+      publish::publish_crate(body, &mut index).map(|()| String::new())
     })
     .and_then(response)
     .with(warp::trace::request());
