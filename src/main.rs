@@ -12,7 +12,6 @@
 mod index;
 mod publish;
 
-use std::fmt::Display;
 use std::io::stdout;
 use std::io::Write as _;
 use std::net::SocketAddr;
@@ -28,7 +27,6 @@ use anyhow::Result;
 use http::StatusCode;
 use serde::Deserialize;
 use serde::Serialize;
-use serde_json::to_string;
 use structopt::StructOpt;
 use tokio::runtime::Builder;
 
@@ -82,21 +80,6 @@ impl From<Error> for RegistryErrors {
   }
 }
 
-fn encode_fallback_error<E>(err: E) -> String
-where
-  E: Display,
-{
-  // We are missing proper escaping here, so this conversion should
-  // really be seen as last resort.
-  format!(
-    r#"{{"errors":[
-    {{"detail":"failed to convert internal error to JSON"}},
-    {{"detail":"{}"}}
-  ]}}"#,
-    err
-  )
-}
-
 /// Convert a result back into a response.
 async fn response<T>(result: Result<T>) -> Result<impl warp::Reply, warp::Rejection>
 where
@@ -111,9 +94,7 @@ where
       error!("request status: error: {:#}", err);
 
       let errors = RegistryErrors::from(err);
-      to_string(&errors)
-        .unwrap_or_else(encode_fallback_error)
-        .into_response()
+      warp::reply::json(&errors).into_response()
     },
   };
   // Registries always respond with OK and use the JSON error array to
@@ -226,7 +207,7 @@ fn main() {
 mod tests {
   use super::*;
 
-  use serde_json::from_str;
+  use serde_json::to_string;
 
 
   #[test]
@@ -239,24 +220,5 @@ mod tests {
     };
 
     assert_eq!(to_string(&errors).unwrap(), expected);
-  }
-
-  #[test]
-  fn fallback_error_encoding() {
-    let expected = r#"{"errors":[
-    {"detail":"failed to convert internal error to JSON"},
-    {"detail":"foobar"}
-  ]}"#;
-
-    let error = encode_fallback_error("foobar");
-    assert_eq!(error, expected);
-
-    let errors = from_str::<RegistryErrors>(&error).unwrap();
-    assert_eq!(
-      &errors.errors[0].detail,
-      "failed to convert internal error to JSON"
-    );
-    assert_eq!(&errors.errors[1].detail, "foobar");
-    assert_eq!(errors.errors.len(), 2);
   }
 }
