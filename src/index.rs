@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Daniel Mueller <deso@posteo.net>
+// Copyright (C) 2020-2021 Daniel Mueller <deso@posteo.net>
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 use std::collections::BTreeMap;
@@ -9,9 +9,11 @@ use std::io::ErrorKind;
 use std::net::SocketAddr;
 use std::path::Path;
 use std::path::PathBuf;
+use std::process::Command;
 use std::str::FromStr as _;
 
 use anyhow::anyhow;
+use anyhow::ensure;
 use anyhow::Context as _;
 use anyhow::Result;
 
@@ -124,6 +126,7 @@ impl Index {
       let mut index = Index { root, repository };
       index.ensure_has_commit()?;
       index.ensure_config(addr)?;
+      index.update_server_info()?;
 
       Ok(index)
     }
@@ -209,6 +212,23 @@ impl Index {
     }
     .context("failed to create git commit")?;
 
+    self.update_server_info()?;
+    Ok(())
+  }
+
+  /// Update information necessary for serving the repository in "dumb"
+  /// mode.
+  fn update_server_info(&self) -> Result<()> {
+    // Neither the git2 crate nor libgit2 itself seem to provide similar
+    // functionality, so we have to fall back to just running the
+    // command.
+    let status = Command::new("git")
+      .current_dir(&self.root)
+      .arg("update-server-info")
+      .status()
+      .context("failed to run git update-server-info")?;
+
+    ensure!(status.success(), "git update-server-info failed");
     Ok(())
   }
 
