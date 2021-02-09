@@ -113,6 +113,10 @@ fn run() -> Result<()> {
   let shared = Arc::new(Mutex::new(Option::<index::Index>::None));
   let copy = shared.clone();
 
+  // Serve the contents of <root>/.git at /git.
+  let index = warp::path("git")
+    .and(warp::fs::dir(args.root.join(".git")))
+    .with(warp::trace::request());
   let publish = warp::put()
     .and(warp::path("api"))
     .and(warp::path("v1"))
@@ -159,10 +163,11 @@ fn run() -> Result<()> {
     }
 
     let (addr, serve) = loop {
+      let routes = index.clone().or(publish.clone());
       // Despite the claim that this function "Returns [...] a Future that
       // can be executed on any runtime." not even the call itself can
       // happen outside of a tokio runtime. Boy.
-      let result = warp::serve(publish.clone())
+      let result = warp::serve(routes)
         .try_bind_ephemeral(addr)
         .with_context(|| format!("failed to bind to {}", addr));
 
