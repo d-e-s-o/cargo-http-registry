@@ -25,9 +25,6 @@ use anyhow::Context as _;
 use anyhow::Error;
 use anyhow::Result;
 
-use http::Response;
-use http::StatusCode;
-
 use serde::Deserialize;
 use serde::Serialize;
 use structopt::StructOpt;
@@ -40,6 +37,8 @@ use tracing_subscriber::filter::LevelFilter;
 use tracing_subscriber::fmt::time::ChronoLocal;
 use tracing_subscriber::FmtSubscriber;
 
+use warp::http::Response;
+use warp::http::StatusCode;
 use warp::Filter as _;
 use warp::Reply as _;
 
