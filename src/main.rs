@@ -9,6 +9,7 @@
 //!
 //! [here]: https://doc.rust-lang.org/cargo/reference/registries.html
 
+mod download;
 mod index;
 mod publish;
 
@@ -24,7 +25,9 @@ use anyhow::Context as _;
 use anyhow::Error;
 use anyhow::Result;
 
+use http::Response;
 use http::StatusCode;
+
 use serde::Deserialize;
 use serde::Serialize;
 use structopt::StructOpt;
@@ -111,11 +114,26 @@ fn run() -> Result<()> {
   // index we have a circular dependency that we can only resolve by use
   // of an `Option`. *sadpanda*
   let shared = Arc::new(Mutex::new(Option::<index::Index>::None));
-  let copy = shared.clone();
+  let copy1 = shared.clone();
+  let copy2 = shared.clone();
 
   // Serve the contents of <root>/.git at /git.
   let index = warp::path("git")
     .and(warp::fs::dir(args.root.join(".git")))
+    .with(warp::trace::request());
+  let download = warp::get()
+    .and(warp::path("api"))
+    .and(warp::path("v1"))
+    .and(warp::path("crates"))
+    .and(warp::path::param())
+    .and(warp::path::param())
+    .and(warp::path("download"))
+    .map(move |name: String, version: String| {
+      let index = copy1.lock().unwrap();
+      let index = index.as_ref().unwrap();
+      download::download_crate(&name, &version, &index).map(Response::new)
+    })
+    .and_then(response)
     .with(warp::trace::request());
   let publish = warp::put()
     .and(warp::path("api"))
@@ -128,7 +146,7 @@ fn run() -> Result<()> {
     // believe that's what crates.io does as well.
     .and(warp::body::content_length_limit(2 * 1024 * 1024))
     .map(move |body| {
-      let mut index = copy.lock().unwrap();
+      let mut index = copy2.lock().unwrap();
       let mut index = index.as_mut().unwrap();
       publish::publish_crate(body, &mut index).map(|()| String::new())
     })
@@ -163,7 +181,7 @@ fn run() -> Result<()> {
     }
 
     let (addr, serve) = loop {
-      let routes = index.clone().or(publish.clone());
+      let routes = index.clone().or(download.clone()).or(publish.clone());
       // Despite the claim that this function "Returns [...] a Future that
       // can be executed on any runtime." not even the call itself can
       // happen outside of a tokio runtime. Boy.

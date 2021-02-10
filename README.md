@@ -30,15 +30,30 @@ By default, the registry will listen only locally on `127.0.0.1`, but
 command line options allow for overwriting this setting.
 
 To make `cargo` aware of this registry, it needs to be made known in a
-[`cargo` configuration file][cargo-config]. E.g., open your
-`~/.cargo/config` (or a per-project configuration) and add the following
-lines:
+[`cargo` configuration file][cargo-config]. The registry can be access
+via the local file system (by specifying the path to it) or over HTTP.
+The HTTP address and port can be found in the registry's `config.json`
+(e.g., `/tmp/my-registry/config.json` in the example; refer to the `api`
+key contents).
+Then open your `~/.cargo/config.toml` (or a per-project configuration) and
+add the following lines:
 ```toml
 [registries]
+my-registry = { index = "http://127.0.0.1:35503/git" }
+# Alternatively, access it via path:
 my-registry = { index = "file:///tmp/my-registry" }
 ```
 
-With that, you can now publish your crates to the registry.
+Also note that for HTTP access, you will need to enable the
+[`net.git-fetch-with-cli` setting][cargo-net-git-cli]. That can be
+accomplished via `config.toml` as well, for example by adding:
+```toml
+[net]
+git-fetch-with-cli = true
+```
+
+With that, you can now publish your crates to the registry and pull them
+from it.
 ```sh
 $ cargo publish --registry my-registry
     Updating `/tmp/my-registry` index
@@ -83,4 +98,5 @@ Note that `cargo-http-registry` is not meant to be a `cargo` subcommand
 and cannot be used as such.
 
 [cargo-config]: https://doc.rust-lang.org/cargo/reference/config.html
+[cargo-net-git-cli]: https://doc.rust-lang.org/cargo/reference/config.html#netgit-fetch-with-cli
 [docs-rs]: https://docs.rs/crate/cargo-http-registry

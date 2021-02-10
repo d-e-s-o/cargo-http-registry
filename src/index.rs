@@ -267,7 +267,10 @@ impl Index {
     match result {
       Ok(file) => {
         let mut config = from_reader::<_, Config>(&file).context("failed to parse config.json")?;
-        let dl = format!("file://{}/{{crate}}-{{version}}.crate", self.root.display());
+        let dl = format!(
+          "http://{}/api/v1/crates/{{crate}}/{{version}}/download",
+          addr
+        );
         let api = format!("http://{}", addr);
         if config.dl != dl || config.api.as_ref() != Some(&api) {
           config.dl = dl;
@@ -291,7 +294,10 @@ impl Index {
       Err(err) if err.kind() == ErrorKind::NotFound => {
         let file = File::create(&path).context("failed to create config.json")?;
         let config = Config {
-          dl: format!("file://{}/{{crate}}-{{version}}.crate", self.root.display()),
+          dl: format!(
+            "http://{}/api/v1/crates/{{crate}}/{{version}}/download",
+            addr
+          ),
           api: Some(format!("http://{}", addr)),
         };
         to_writer_pretty(&file, &config).context("failed to write config.json")?;
@@ -350,11 +356,10 @@ mod tests {
     let config = File::open(file).unwrap();
     let config = from_reader::<_, Config>(&config).unwrap();
 
-    let expected = format!(
-      "file://{}/{{crate}}-{{version}}.crate",
-      root.as_ref().display()
+    assert_eq!(
+      config.dl,
+      "http://192.168.0.1:9999/api/v1/crates/{crate}/{version}/download"
     );
-    assert_eq!(config.dl, expected);
     assert_eq!(config.api, Some("http://192.168.0.1:9999".to_string()));
   }
 
@@ -375,11 +380,10 @@ mod tests {
     let config = File::open(file).unwrap();
     let config = from_reader::<_, Config>(&config).unwrap();
 
-    let expected = format!(
-      "file://{}/{{crate}}-{{version}}.crate",
-      root.as_ref().display()
+    assert_eq!(
+      config.dl,
+      "http://254.0.0.0:1/api/v1/crates/{crate}/{version}/download"
     );
-    assert_eq!(config.dl, expected);
     assert_eq!(config.api, Some("http://254.0.0.0:1".to_string()));
   }
 }
