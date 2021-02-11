@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Daniel Mueller <deso@posteo.net>
+// Copyright (C) 2020-2021 Daniel Mueller <deso@posteo.net>
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 use std::collections::BTreeMap;
@@ -171,6 +171,11 @@ impl From<(MetaData, &[u8])> for Entry {
   }
 }
 
+/// Craft the file name for a crate named `name` in version `version`.
+pub fn crate_file_name(name: &str, version: &str) -> String {
+  format!("{}-{}.crate", name, version)
+}
+
 /// Extract and parse a `u32` value from a `Bytes` object.
 fn parse_u32(bytes: &mut Bytes) -> Result<u32> {
   ensure!(bytes.len() >= size_of::<u32>(), "not enough data for u32");
@@ -275,7 +280,7 @@ pub fn publish_crate(mut body: Bytes, index: &mut Index) -> Result<()> {
   to_writer(&mut file, &entry).context("failed to write crate index meta data")?;
   writeln!(file).context("failed to append new line to crate index meta data file")?;
 
-  let crate_file_name = format!("{}-{}.crate", crate_name, crate_vers);
+  let crate_file_name = crate_file_name(&crate_name, &crate_vers);
   let crate_path = index.root().join(&crate_file_name);
   let mut file = OpenOptions::new()
     .write(true)

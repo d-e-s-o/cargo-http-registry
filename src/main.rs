@@ -9,7 +9,6 @@
 //!
 //! [here]: https://doc.rust-lang.org/cargo/reference/registries.html
 
-mod download;
 mod index;
 mod publish;
 
@@ -37,8 +36,8 @@ use tracing_subscriber::filter::LevelFilter;
 use tracing_subscriber::fmt::time::ChronoLocal;
 use tracing_subscriber::FmtSubscriber;
 
-use warp::http::Response;
 use warp::http::StatusCode;
+use warp::http::Uri;
 use warp::Filter as _;
 use warp::Reply as _;
 
@@ -113,12 +112,17 @@ fn run() -> Result<()> {
   // index we have a circular dependency that we can only resolve by use
   // of an `Option`. *sadpanda*
   let shared = Arc::new(Mutex::new(Option::<index::Index>::None));
-  let copy1 = shared.clone();
-  let copy2 = shared.clone();
+  let copy = shared.clone();
 
   // Serve the contents of <root>/.git at /git.
   let index = warp::path("git")
     .and(warp::fs::dir(args.root.join(".git")))
+    .with(warp::trace::request());
+  // Serve the contents of <root>/ at /crates. This allows for directly
+  // downloading the .crate files, to which we redirect from the
+  // download handler below.
+  let crates = warp::path("crates")
+    .and(warp::fs::dir(args.root.clone()))
     .with(warp::trace::request());
   let download = warp::get()
     .and(warp::path("api"))
@@ -128,11 +132,13 @@ fn run() -> Result<()> {
     .and(warp::path::param())
     .and(warp::path("download"))
     .map(move |name: String, version: String| {
-      let index = copy1.lock().unwrap();
-      let index = index.as_ref().unwrap();
-      download::download_crate(&name, &version, &index).map(Response::new)
+      let path = format!("/crates/{}", publish::crate_file_name(&name, &version));
+      // TODO: Ideally we shouldn't unwrap here. That's not that easily
+      //       possible, though, because then we'd need to handle errors
+      //       and we can't use the response function because it will
+      //       overwrite the HTTP status even on success.
+      path.parse::<Uri>().map(warp::redirect).unwrap()
     })
-    .and_then(response)
     .with(warp::trace::request());
   let publish = warp::put()
     .and(warp::path("api"))
@@ -145,7 +151,7 @@ fn run() -> Result<()> {
     // believe that's what crates.io does as well.
     .and(warp::body::content_length_limit(2 * 1024 * 1024))
     .map(move |body| {
-      let mut index = copy2.lock().unwrap();
+      let mut index = copy.lock().unwrap();
       let mut index = index.as_mut().unwrap();
       publish::publish_crate(body, &mut index).map(|()| String::new())
     })
@@ -180,7 +186,11 @@ fn run() -> Result<()> {
     }
 
     let (addr, serve) = loop {
-      let routes = index.clone().or(download.clone()).or(publish.clone());
+      let routes = index
+        .clone()
+        .or(crates.clone())
+        .or(download.clone())
+        .or(publish.clone());
       // Despite the claim that this function "Returns [...] a Future that
       // can be executed on any runtime." not even the call itself can
       // happen outside of a tokio runtime. Boy.
