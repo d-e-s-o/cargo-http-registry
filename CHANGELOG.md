@@ -1,5 +1,5 @@
-Unreleased
-----------
+0.1.1
+-----
 - Added support for serving registry over HTTP
   - Require `net.git-fetch-with-cli` Cargo configuration
 - Removed `http` dependency
