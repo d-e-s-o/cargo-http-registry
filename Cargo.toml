@@ -12,6 +12,9 @@ A cargo registry allowing for quick publishing of crates when using
 crates.io is just not desired.
 """
 
+[badges]
+gitlab = { repository = "d-e-s-o/cargo-http-registry", branch = "master" }
+
 [dependencies]
 anyhow = {version = "1.0"}
 git2 = {version = "0.13.12"}

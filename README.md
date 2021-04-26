@@ -1,4 +1,6 @@
+[![pipeline](https://gitlab.com/d-e-s-o/cargo-http-registry/badges/master/pipeline.svg)](https://gitlab.com/d-e-s-o/cargo-http-registry/commits/master)
 [![crates.io](https://img.shields.io/crates/v/cargo-http-registry.svg)](https://crates.io/crates/cargo-http-registry)
+[![rustc](https://img.shields.io/badge/rustc-1.46+-blue.svg)](https://blog.rust-lang.org/2020/08/27/Rust-1.46.0.html)
 
 cargo-http-registry
 ===================
