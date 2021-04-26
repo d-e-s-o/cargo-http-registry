@@ -29,8 +29,7 @@ use serde_json::to_writer_pretty;
 fn parse_port(url: &str) -> Result<u16> {
   let addr = url
     .split('/')
-    .skip(2)
-    .next()
+    .nth(2)
     .ok_or_else(|| anyhow!("provided URL {} has unexpected format", url))?;
   let addr =
     SocketAddr::from_str(&addr).with_context(|| format!("failed to parse address {}", addr))?;
@@ -368,7 +367,7 @@ mod tests {
     let root = tempdir().unwrap();
     let mut file = File::create(root.as_ref().join("config.json")).unwrap();
     // We always assume some valid JSON in the config.
-    file.write(br#"{"dl":"foobar"}"#).unwrap();
+    file.write_all(br#"{"dl":"foobar"}"#).unwrap();
 
     let addr = SocketAddr::from_str("254.0.0.0:1").unwrap();
     let index = Index::new(root.as_ref(), &addr).unwrap();

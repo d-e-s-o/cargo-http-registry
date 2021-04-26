@@ -153,7 +153,7 @@ impl From<(MetaData, &[u8])> for Entry {
   fn from(source: (MetaData, &[u8])) -> Self {
     let (metadata, data) = source;
 
-    let entry = Self {
+    Self {
       name: metadata.name,
       vers: metadata.vers,
       deps: metadata
@@ -165,9 +165,7 @@ impl From<(MetaData, &[u8])> for Entry {
       features: metadata.features,
       yanked: false,
       links: metadata.links,
-    };
-
-    entry
+    }
   }
 }
 
@@ -206,11 +204,11 @@ fn crate_path(name: &str) -> PathBuf {
   }
 
   match name.as_bytes() {
-    &[] => unreachable!(),
-    &[_] => PathBuf::from("1"),
-    &[_, _] => PathBuf::from("2"),
-    &[c, _, _] => ["3", to_str(&c)].iter().collect(),
-    &[c1, c2, c3, c4, ..] => [
+    [] => unreachable!(),
+    [_] => PathBuf::from("1"),
+    [_, _] => PathBuf::from("2"),
+    [c, _, _] => ["3", to_str(&c)].iter().collect(),
+    [c1, c2, c3, c4, ..] => [
       format!("{}{}", to_str(&c1), to_str(&c2)),
       format!("{}{}", to_str(&c3), to_str(&c4)),
     ]
