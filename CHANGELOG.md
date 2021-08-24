@@ -1,5 +1,6 @@
 Unreleased
 ----------
+- Adjusted directory structure to store index below `index/` folder
 - Enabled CI pipeline comprising building, testing, and linting of the
   project
   - Added badge indicating pipeline status
