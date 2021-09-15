@@ -11,11 +11,21 @@ stages:
   - build
   - test
 
+variables:
+  CARGO_HOME: $CI_PROJECT_DIR/cargo-home
+
+cache: &global-cache
+  key: global-cache
+  paths:
+  - $CARGO_HOME
+  - target/
+  policy: pull
+
 build:cargo:
   stage: build
-  artifacts:
-    paths:
-      - target/
+  cache:
+    <<: *global-cache
+    policy: pull-push
   script:
   - rustc --version && cargo --version
   - cargo build --bins --tests --verbose
@@ -23,8 +33,6 @@ build:cargo:
 
 test:cargo:
   stage: test
-  dependencies:
-  - build:cargo
   script:
   - git config --global user.name = "deso"
   - git config --global user.email = "deso@posteo.net"
@@ -32,8 +40,6 @@ test:cargo:
 
 lint:clippy:
   stage: test
-  dependencies:
-    - build:cargo
   script:
   - rustup component add clippy
   - cargo clippy --all-targets --all-features -- -D warnings
