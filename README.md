@@ -32,7 +32,7 @@ By default, the registry will listen only locally on `127.0.0.1`, but
 command line options allow for overwriting this setting.
 
 To make `cargo` aware of this registry, it needs to be made known in a
-[`cargo` configuration file][cargo-config]. The registry can be access
+[`cargo` configuration file][cargo-config]. The registry can be accessed
 via the local file system (by specifying the path to it) or over HTTP.
 The HTTP address and port can be found in the registry's `config.json`
 (e.g., `/tmp/my-registry/config.json` in the example; refer to the `api`
@@ -98,6 +98,11 @@ To consume the published crate from the local registry, simply set the
 
 Note that `cargo-http-registry` is not meant to be a `cargo` subcommand
 and cannot be used as such.
+
+Note furthermore that the registry is meant to be used in a trusted
+setting, such as on a single computer or local home network. The reason
+being that, by design, it does not have any authentication scheme
+present and no attempts of hardening the code have been undertaken.
 
 [cargo-config]: https://doc.rust-lang.org/cargo/reference/config.html
 [cargo-net-git-cli]: https://doc.rust-lang.org/cargo/reference/config.html#netgit-fetch-with-cli
