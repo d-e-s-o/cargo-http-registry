@@ -207,10 +207,10 @@ fn crate_path(name: &str) -> PathBuf {
     [] => unreachable!(),
     [_] => PathBuf::from("1"),
     [_, _] => PathBuf::from("2"),
-    [c, _, _] => ["3", to_str(&c)].iter().collect(),
+    [c, _, _] => ["3", to_str(c)].iter().collect(),
     [c1, c2, c3, c4, ..] => [
-      format!("{}{}", to_str(&c1), to_str(&c2)),
-      format!("{}{}", to_str(&c3), to_str(&c4)),
+      format!("{}{}", to_str(c1), to_str(c2)),
+      format!("{}{}", to_str(c3), to_str(c4)),
     ]
     .iter()
     .collect(),

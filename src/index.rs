@@ -32,7 +32,7 @@ fn parse_port(url: &str) -> Result<u16> {
     .nth(2)
     .ok_or_else(|| anyhow!("provided URL {} has unexpected format", url))?;
   let addr =
-    SocketAddr::from_str(&addr).with_context(|| format!("failed to parse address {}", addr))?;
+    SocketAddr::from_str(addr).with_context(|| format!("failed to parse address {}", addr))?;
   Ok(addr.port())
 }
 
