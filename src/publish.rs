@@ -249,10 +249,7 @@ pub fn publish_crate(mut body: Bytes, index: &mut Index) -> Result<()> {
     "crate name contains non-ASCII characters"
   );
 
-  // Store index data in index/ folder to mirror how
-  // cargo-local-registry lays out its registry in file system. This
-  // way, users are able to seamlessly switch between the two.
-  let crate_meta_dir = index.root().join("index").join(crate_path(&crate_name));
+  let crate_meta_dir = index.root().join(crate_path(&crate_name));
   create_dir_all(&crate_meta_dir)
     .with_context(|| format!("failed to create directory {}", crate_meta_dir.display()))?;
 

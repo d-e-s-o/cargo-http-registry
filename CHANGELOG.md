@@ -1,6 +1,6 @@
 Unreleased
 ----------
-- Adjusted directory structure to store index below `index/` folder
+- Added recursive `index` link to registry directory
 - Enabled CI pipeline comprising building, testing, and linting of the
   project
   - Added badge indicating pipeline status

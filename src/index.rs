@@ -5,6 +5,7 @@ use std::collections::BTreeMap;
 use std::fs::create_dir_all;
 use std::fs::File;
 use std::fs::OpenOptions;
+use std::io;
 use std::io::ErrorKind;
 use std::net::SocketAddr;
 use std::path::Path;
@@ -34,6 +35,27 @@ fn parse_port(url: &str) -> Result<u16> {
   let addr =
     SocketAddr::from_str(addr).with_context(|| format!("failed to parse address {}", addr))?;
   Ok(addr.port())
+}
+
+
+/// Create a symbolic link for a directory.
+///
+/// If the link already exists the function succeeds.
+fn symlink_dir<P, Q>(original: P, link: Q) -> io::Result<()>
+where
+  P: AsRef<Path>,
+  Q: AsRef<Path>,
+{
+  #[cfg(unix)]
+  use std::os::unix::fs::symlink;
+  #[cfg(window)]
+  use std::os::windows::fs::symlink_dir as symlink;
+
+  let result = symlink(original, link);
+  match result {
+    Err(error) if error.kind() == ErrorKind::AlreadyExists => Ok(()),
+    result => result,
+  }
 }
 
 
@@ -118,6 +140,17 @@ impl Index {
     fn inner(root: PathBuf, addr: &SocketAddr) -> Result<Index> {
       create_dir_all(&root)
         .with_context(|| format!("failed to create directory {}", root.display()))?;
+
+      // For interoperability with cargo-local-registry, which expects
+      // the index data to reside below index/, we create a symbolic
+      // link here. This way, users are able to seamlessly switch
+      // between the two.
+      symlink_dir(".", root.join("index")).with_context(|| {
+        format!(
+          "failed to create index/ symbolic link below {}",
+          root.display()
+        )
+      })?;
 
       let repository = Repository::init(&root)
         .with_context(|| format!("failed to initialize git repository {}", root.display()))?;
