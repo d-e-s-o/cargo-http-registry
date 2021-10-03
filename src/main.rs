@@ -106,6 +106,20 @@ where
 
 fn run() -> Result<()> {
   let args = Args::from_args_safe()?;
+  let level = match args.verbosity {
+    0 => LevelFilter::WARN,
+    1 => LevelFilter::INFO,
+    2 => LevelFilter::DEBUG,
+    _ => LevelFilter::TRACE,
+  };
+
+  let subscriber = FmtSubscriber::builder()
+    .with_max_level(level)
+    .with_timer(ChronoLocal::rfc3339())
+    .finish();
+
+  set_global_subscriber(subscriber).with_context(|| "failed to set tracing subscriber")?;
+
   // Unfortunately because of how we have to define our routes in order
   // to create our server and we need a server in order to bind it while
   // also needing to bind in order to have the necessary address for the
@@ -157,20 +171,6 @@ fn run() -> Result<()> {
     })
     .and_then(response)
     .with(warp::trace::request());
-
-  let level = match args.verbosity {
-    0 => LevelFilter::WARN,
-    1 => LevelFilter::INFO,
-    2 => LevelFilter::DEBUG,
-    _ => LevelFilter::TRACE,
-  };
-
-  let subscriber = FmtSubscriber::builder()
-    .with_max_level(level)
-    .with_timer(ChronoLocal::rfc3339())
-    .finish();
-
-  set_global_subscriber(subscriber).with_context(|| "failed to set tracing subscriber")?;
 
   let rt = Builder::new_current_thread().enable_io().build().unwrap();
   rt.block_on(async move {
