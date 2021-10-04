@@ -12,9 +12,11 @@
 mod index;
 mod publish;
 
+use std::future::Future;
 use std::io::stdout;
 use std::io::Write as _;
 use std::net::SocketAddr;
+use std::path::Path;
 use std::path::PathBuf;
 use std::process::exit;
 use std::sync::Arc;
@@ -104,22 +106,8 @@ where
   Ok(reply)
 }
 
-fn run() -> Result<()> {
-  let args = Args::from_args_safe()?;
-  let level = match args.verbosity {
-    0 => LevelFilter::WARN,
-    1 => LevelFilter::INFO,
-    2 => LevelFilter::DEBUG,
-    _ => LevelFilter::TRACE,
-  };
-
-  let subscriber = FmtSubscriber::builder()
-    .with_max_level(level)
-    .with_timer(ChronoLocal::rfc3339())
-    .finish();
-
-  set_global_subscriber(subscriber).with_context(|| "failed to set tracing subscriber")?;
-
+/// Serve a registry at the given path on the given socket address.
+fn serve(root: &Path, addr: SocketAddr) -> Result<(impl Future<Output = ()>, SocketAddr)> {
   // Unfortunately because of how we have to define our routes in order
   // to create our server and we need a server in order to bind it while
   // also needing to bind in order to have the necessary address for the
@@ -130,13 +118,13 @@ fn run() -> Result<()> {
 
   // Serve the contents of <root>/.git at /git.
   let index = warp::path("git")
-    .and(warp::fs::dir(args.root.join(".git")))
+    .and(warp::fs::dir(root.join(".git")))
     .with(warp::trace::request());
   // Serve the contents of <root>/ at /crates. This allows for directly
   // downloading the .crate files, to which we redirect from the
   // download handler below.
   let crates = warp::path("crates")
-    .and(warp::fs::dir(args.root.clone()))
+    .and(warp::fs::dir(root.to_owned()))
     .with(warp::trace::request());
   let download = warp::get()
     .and(warp::path("api"))
@@ -172,54 +160,74 @@ fn run() -> Result<()> {
     .and_then(response)
     .with(warp::trace::request());
 
-  let rt = Builder::new_current_thread().enable_io().build().unwrap();
-  rt.block_on(async move {
-    let mut addr = args.addr;
-    let original_port = addr.port();
-    // If the port is kernel-assigned then see if we can just use the
-    // same one we used last time, to prevent needless updates of our
-    // configuration file.
-    if addr.port() == 0 {
-      if let Ok(port) = index::Index::try_read_port(&args.root) {
-        addr.set_port(port)
-      }
+  let mut addr = addr;
+  let original_port = addr.port();
+  // If the port is kernel-assigned then see if we can just use the
+  // same one we used last time, to prevent needless updates of our
+  // configuration file.
+  if addr.port() == 0 {
+    if let Ok(port) = index::Index::try_read_port(root) {
+      addr.set_port(port)
     }
+  }
 
-    let (addr, serve) = loop {
-      let routes = index
-        .clone()
-        .or(crates.clone())
-        .or(download.clone())
-        .or(publish.clone());
-      // Despite the claim that this function "Returns [...] a Future that
-      // can be executed on any runtime." not even the call itself can
-      // happen outside of a tokio runtime. Boy.
-      let result = warp::serve(routes)
-        .try_bind_ephemeral(addr)
-        .with_context(|| format!("failed to bind to {}", addr));
+  let (addr, serve) = loop {
+    let routes = index
+      .clone()
+      .or(crates.clone())
+      .or(download.clone())
+      .or(publish.clone());
+    // Despite the claim that this function "Returns [...] a Future that
+    // can be executed on any runtime." not even the call itself can
+    // happen outside of a tokio runtime. Boy.
+    let result = warp::serve(routes)
+      .try_bind_ephemeral(addr)
+      .with_context(|| format!("failed to bind to {}", addr));
 
-      match result {
-        Ok(result) => break result,
-        Err(_) if addr.port() != original_port => {
-          // We retry with the original port.
-          addr.set_port(original_port);
-        },
-        Err(err) => return Err(err),
-      }
-    };
+    match result {
+      Ok(result) => break result,
+      Err(_) if addr.port() != original_port => {
+        // We retry with the original port.
+        addr.set_port(original_port);
+      },
+      Err(err) => return Err(err),
+    }
+  };
 
-    let index = index::Index::new(&args.root, &addr).with_context(|| {
-      format!(
-        "failed to create/instantiate crate index at {}",
-        args.root.display()
-      )
-    })?;
+  let index = index::Index::new(&root, &addr).with_context(|| {
+    format!(
+      "failed to create/instantiate crate index at {}",
+      root.display()
+    )
+  })?;
 
-    *shared.lock().unwrap() = Some(index);
+  *shared.lock().unwrap() = Some(index);
 
-    serve.await;
-    Ok(())
-  })
+  Ok((serve, addr))
+}
+
+fn run() -> Result<()> {
+  let args = Args::from_args_safe()?;
+  let level = match args.verbosity {
+    0 => LevelFilter::WARN,
+    1 => LevelFilter::INFO,
+    2 => LevelFilter::DEBUG,
+    _ => LevelFilter::TRACE,
+  };
+
+  let subscriber = FmtSubscriber::builder()
+    .with_max_level(level)
+    .with_timer(ChronoLocal::rfc3339())
+    .finish();
+
+  set_global_subscriber(subscriber).with_context(|| "failed to set tracing subscriber")?;
+
+  let rt = Builder::new_current_thread().enable_io().build().unwrap();
+  let _guard = rt.enter();
+
+  let (serve, _addr) = serve(&args.root, args.addr)?;
+  rt.block_on(serve);
+  Ok(())
 }
 
 fn main() {
