@@ -23,6 +23,15 @@ use cargo_http_registry::serve;
 const REGISTRY: &str = "my-registry";
 
 
+/// A locator for a registry.
+enum Locator {
+  /// A path on the file system to the root of the registry.
+  Path(PathBuf),
+  /// A socket address for HTTP based access of the registry.
+  Socket(SocketAddr),
+}
+
+
 /// Append data to a file.
 fn append<B>(file: &Path, data: B) -> Result<()>
 where
@@ -41,12 +50,25 @@ where
 
 
 /// Set up the cargo home directory to use.
-fn setup_cargo_home(root: &Path, addr: SocketAddr) -> Result<PathBuf> {
+fn setup_cargo_home(root: &Path, registry_locator: Locator) -> Result<PathBuf> {
   let home = root.join(".cargo");
   create_dir(&home).context("failed to create cargo home directory")?;
   let config = home.join("config.toml");
-  let data = format!(
-    r#"
+  let data = match registry_locator {
+    Locator::Path(path) => {
+      format!(
+        r#"
+[registries.{registry}]
+index = "file://{path}"
+token = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+"#,
+        registry = REGISTRY,
+        path = path.display(),
+      )
+    },
+    Locator::Socket(addr) => {
+      format!(
+        r#"
 [registries.{registry}]
 index = "http://{addr}/git"
 token = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
@@ -54,9 +76,11 @@ token = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 [net]
 git-fetch-with-cli = true
 "#,
-    registry = REGISTRY,
-    addr = addr,
-  );
+        registry = REGISTRY,
+        addr = addr,
+      )
+    },
+  };
 
   append(&config, data)?;
   Ok(home)
@@ -109,11 +133,12 @@ where
 
 
 /// Serve our registry.
-fn serve_registry() -> (JoinHandle<()>, SocketAddr) {
+fn serve_registry() -> (JoinHandle<()>, PathBuf, SocketAddr) {
   let root = tempdir().unwrap();
+  let path = root.path().to_owned();
   let addr = "127.0.0.1:0".parse().unwrap();
 
-  let (serve, addr) = serve(root.path(), addr).unwrap();
+  let (serve, addr) = serve(&path, addr).unwrap();
   let serve = move || async {
     serve.await;
     // We need to reference `root` here to make sure that it is
@@ -122,18 +147,18 @@ fn serve_registry() -> (JoinHandle<()>, SocketAddr) {
     drop(root);
   };
   let handle = spawn(serve());
-  (handle, addr)
+  (handle, path, addr)
 }
 
 
 /// Check that we can publish a crate.
 #[tokio::test]
 async fn publish() {
-  let (_handle, addr) = serve_registry();
+  let (_handle, _reg_root, addr) = serve_registry();
 
   let src_root = tempdir().unwrap();
   let src_root = src_root.path();
-  let home = setup_cargo_home(src_root, addr).unwrap();
+  let home = setup_cargo_home(src_root, Locator::Socket(addr)).unwrap();
 
   let my_lib = src_root.join("my-lib");
   cargo_init(&home, ["--lib", my_lib.to_str().unwrap()])
@@ -151,14 +176,11 @@ async fn publish() {
   .unwrap();
 }
 
-/// Check that we can consume a published crate over HTTP.
-#[tokio::test]
-async fn get_http() {
-  let (_handle, addr) = serve_registry();
 
+async fn test_publish_and_consume(registry_locator: Locator) {
   let src_root = tempdir().unwrap();
   let src_root = src_root.path();
-  let home = setup_cargo_home(src_root, addr).unwrap();
+  let home = setup_cargo_home(src_root, registry_locator).unwrap();
 
   // Create a library crate, my-lib, and have it export a function, foo.
   let my_lib = src_root.join("my-lib");
@@ -198,4 +220,20 @@ async fn get_http() {
   )
   .await
   .unwrap();
+}
+
+
+/// Check that we can consume a published crate over HTTP.
+#[tokio::test]
+async fn get_http() {
+  let (_handle, _, addr) = serve_registry();
+  test_publish_and_consume(Locator::Socket(addr)).await
+}
+
+
+/// Check that we can consume a published crate through the file system.
+#[tokio::test]
+async fn get_filesystem() {
+  let (_handle, root, _) = serve_registry();
+  test_publish_and_consume(Locator::Path(root)).await
 }
