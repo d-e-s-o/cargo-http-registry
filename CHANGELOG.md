@@ -1,6 +1,7 @@
 Unreleased
 ----------
 - Added recursive `index` link to registry directory
+- Adjusted release build compile options to optimize binary for size
 - Enabled CI pipeline comprising building, testing, and linting of the
   project
   - Added badge indicating pipeline status
