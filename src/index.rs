@@ -39,8 +39,6 @@ fn parse_port(url: &str) -> Result<u16> {
 
 
 /// Create a symbolic link for a directory.
-///
-/// If the link already exists the function succeeds.
 fn symlink_dir<P, Q>(original: P, link: Q) -> io::Result<()>
 where
   P: AsRef<Path>,
@@ -51,11 +49,7 @@ where
   #[cfg(window)]
   use std::os::windows::fs::symlink_dir as symlink;
 
-  let result = symlink(original, link);
-  match result {
-    Err(error) if error.kind() == ErrorKind::AlreadyExists => Ok(()),
-    result => result,
-  }
+  symlink(original, link)
 }
 
 
@@ -141,23 +135,13 @@ impl Index {
       create_dir_all(&root)
         .with_context(|| format!("failed to create directory {}", root.display()))?;
 
-      // For interoperability with cargo-local-registry, which expects
-      // the index data to reside below index/, we create a symbolic
-      // link here. This way, users are able to seamlessly switch
-      // between the two.
-      symlink_dir(".", root.join("index")).with_context(|| {
-        format!(
-          "failed to create index/ symbolic link below {}",
-          root.display()
-        )
-      })?;
-
       let repository = Repository::init(&root)
         .with_context(|| format!("failed to initialize git repository {}", root.display()))?;
 
       let mut index = Index { root, repository };
       index.ensure_has_commit()?;
       index.ensure_config(addr)?;
+      index.ensure_index_symlink()?;
       index.update_server_info()?;
 
       Ok(index)
@@ -342,6 +326,34 @@ impl Index {
           .context("failed to commit config.json")?;
       },
       Err(err) => return Err(err).context("failed to open/create config.json"),
+    }
+    Ok(())
+  }
+
+  /// Ensure that we have a recursive `index` symlink to the root of the
+  /// directory which contains the index.
+  fn ensure_index_symlink(&mut self) -> Result<()> {
+    // For interoperability with cargo-local-registry, which expects
+    // the index data to reside below index/, we create a symbolic
+    // link here. This way, users are able to seamlessly switch
+    // between the two.
+    let result = symlink_dir(".", self.root.join("index"));
+    match result {
+      Ok(()) => {
+        self
+          .add(Path::new("index"))
+          .context("failed to stage index symlink")?;
+        self
+          .commit("Add index symlink")
+          .context("failed to commit index symlink")?;
+      },
+      Err(err) if err.kind() == ErrorKind::AlreadyExists => (),
+      result => result.with_context(|| {
+        format!(
+          "failed to create index/ symbolic link below {}",
+          self.root.display()
+        )
+      })?,
     }
     Ok(())
   }
