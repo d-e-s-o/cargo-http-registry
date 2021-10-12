@@ -1,5 +1,5 @@
-Unreleased
-----------
+0.1.2
+-----
 - Added recursive `index` link to registry directory
 - Adjusted release build compile options to optimize binary for size
 - Enabled CI pipeline comprising building, testing, and linting of the
