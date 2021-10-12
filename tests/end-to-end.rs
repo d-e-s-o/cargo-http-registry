@@ -20,7 +20,7 @@ use tokio::task::JoinHandle;
 
 use cargo_http_registry::serve;
 
-const REGISTRY: &str = "my-registry";
+const REGISTRY: &str = "e2e-test-registry";
 
 
 /// A locator for a registry.
