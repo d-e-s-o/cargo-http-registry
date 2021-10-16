@@ -374,6 +374,8 @@ mod tests {
   use std::str::FromStr;
 
   use git2::RepositoryState;
+  use git2::StatusOptions;
+  use git2::StatusShow;
 
   use tempfile::tempdir;
 
@@ -445,5 +447,27 @@ mod tests {
     {
       let _index = Index::new(root.path(), &addr).unwrap();
     }
+  }
+
+  /// Check that the Git repository contained in our index has no
+  /// untracked files.
+  #[test]
+  fn no_untracked_files() {
+    let root = tempdir().unwrap();
+    let addr = "127.0.0.1:0".parse().unwrap();
+    let index = Index::new(root.path(), &addr).unwrap();
+
+    // The repository should be clean.
+    assert_eq!(index.repository.state(), RepositoryState::Clean);
+
+    let mut options = StatusOptions::new();
+    options
+      .show(StatusShow::IndexAndWorkdir)
+      .include_untracked(true)
+      .include_ignored(true)
+      .include_unmodified(false);
+
+    let statuses = index.repository.statuses(Some(&mut options)).unwrap();
+    assert_eq!(statuses.len(), 0);
   }
 }
