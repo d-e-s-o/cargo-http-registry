@@ -430,4 +430,20 @@ mod tests {
     );
     assert_eq!(config.api, Some("http://254.0.0.0:1".to_string()));
   }
+
+  /// Test that we can create an `Index` in the same registry directory
+  /// multiple times without problems.
+  #[test]
+  fn recreate_index() {
+    let root = tempdir().unwrap();
+    let addr = "127.0.0.1:0".parse().unwrap();
+
+    {
+      let _index = Index::new(root.path(), &addr).unwrap();
+    }
+
+    {
+      let _index = Index::new(root.path(), &addr).unwrap();
+    }
+  }
 }
