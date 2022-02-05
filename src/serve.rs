@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Daniel Mueller <deso@posteo.net>
+// Copyright (C) 2021-2022 Daniel Mueller <deso@posteo.net>
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 use std::future::Future;
@@ -124,8 +124,8 @@ pub fn serve(root: &Path, addr: SocketAddr) -> Result<(impl Future<Output = ()>,
     .and(warp::body::content_length_limit(2 * 1024 * 1024))
     .map(move |body| {
       let mut index = copy.lock().unwrap();
-      let mut index = index.as_mut().unwrap();
-      publish_crate(body, &mut index).map(|()| String::new())
+      let index = index.as_mut().unwrap();
+      publish_crate(body, index).map(|()| String::new())
     })
     .and_then(response)
     .with(warp::trace::request());

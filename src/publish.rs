@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2021 Daniel Mueller <deso@posteo.net>
+// Copyright (C) 2020-2022 Daniel Mueller <deso@posteo.net>
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 use std::collections::BTreeMap;
@@ -98,6 +98,7 @@ impl From<Dep> for crate::index::Dep {
 }
 
 #[derive(Debug, Deserialize)]
+#[allow(unused)]
 struct MetaData {
   /// The name of the package.
   name: String,
