@@ -1,3 +1,8 @@
+Unreleased
+----------
+- Bumped `sha2` dependency to `0.10`
+
+
 0.1.2
 -----
 - Added recursive `index` link to registry directory
