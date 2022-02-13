@@ -27,7 +27,7 @@ sha2 = {version = "0.10"}
 structopt = {version = "0.3.20"}
 tokio = {version = "1.0", default-features = false, features = ["rt"]}
 tracing = {version = "0.1", default-features = false, features = ["std"]}
-tracing-subscriber = {version = "0.2", default-features = false, features = ["ansi", "chrono", "env-filter", "fmt"]}
+tracing-subscriber = {version = "0.3", default-features = false, features = ["ansi", "env-filter", "fmt"]}
 warp = {version = "0.3", default-features = false}
 
 [dev-dependencies]

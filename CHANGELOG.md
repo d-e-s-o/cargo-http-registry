@@ -3,6 +3,7 @@ Unreleased
 - Increased maximum publishable crate size to 20 MiB
 - Bumped `git2` dependency to `0.14`
 - Bumped `sha2` dependency to `0.10`
+- Bumped `tracing-subscriber` dependency to `0.3`
 
 
 0.1.2
