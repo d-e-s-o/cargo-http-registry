@@ -119,9 +119,9 @@ pub fn serve(root: &Path, addr: SocketAddr) -> Result<(impl Future<Output = ()>,
     .and(warp::path("new"))
     .and(warp::path::end())
     .and(warp::body::bytes())
-    // We cap total body size to 2 MiB to have some upper bound. I
+    // We cap total body size to 20 MiB to have some upper bound. I
     // believe that's what crates.io does as well.
-    .and(warp::body::content_length_limit(2 * 1024 * 1024))
+    .and(warp::body::content_length_limit(20 * 1024 * 1024))
     .map(move |body| {
       let mut index = copy.lock().unwrap();
       let index = index.as_mut().unwrap();
