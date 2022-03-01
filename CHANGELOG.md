@@ -1,5 +1,6 @@
 Unreleased
 ----------
+- Increased maximum publishable crate size to 20 MiB
 - Bumped `sha2` dependency to `0.10`
 
 
