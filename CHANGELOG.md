@@ -1,3 +1,8 @@
+Unreleased
+----------
+- Bumped minimum supported Rust version to `1.59`
+
+
 0.1.3
 -----
 - Increased maximum publishable crate size to 20 MiB

@@ -280,7 +280,7 @@ pub fn publish_crate(mut body: Bytes, index: &mut Index) -> Result<()> {
   writeln!(file).context("failed to append new line to crate index meta data file")?;
 
   let crate_file_name = crate_file_name(&crate_name, &crate_vers);
-  let crate_path = index.root().join(&crate_file_name);
+  let crate_path = index.root().join(crate_file_name);
   let mut file = OpenOptions::new()
     .write(true)
     .create(true)

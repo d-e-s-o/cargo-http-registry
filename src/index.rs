@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2021 Daniel Mueller <deso@posteo.net>
+// Copyright (C) 2020-2022 Daniel Mueller <deso@posteo.net>
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 use std::collections::BTreeMap;
@@ -252,7 +252,7 @@ impl Index {
   /// from the configuration file.
   pub fn try_read_port(root: &Path) -> Result<u16> {
     let config = root.join("config.json");
-    let file = File::open(&config).context("failed to open config.json")?;
+    let file = File::open(config).context("failed to open config.json")?;
     let config = from_reader::<_, Config>(&file).context("failed to parse config.json")?;
 
     config

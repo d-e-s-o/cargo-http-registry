@@ -164,7 +164,7 @@ pub fn serve(root: &Path, addr: SocketAddr) -> Result<(impl Future<Output = ()>,
     }
   };
 
-  let index = Index::new(&root, &addr).with_context(|| {
+  let index = Index::new(root, &addr).with_context(|| {
     format!(
       "failed to create/instantiate crate index at {}",
       root.display()
