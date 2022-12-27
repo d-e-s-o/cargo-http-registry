@@ -1,4 +1,4 @@
-[![pipeline](https://gitlab.com/d-e-s-o/cargo-http-registry/badges/master/pipeline.svg)](https://gitlab.com/d-e-s-o/cargo-http-registry/commits/master)
+[![pipeline](https://gitlab.com/d-e-s-o/cargo-http-registry/badges/main/pipeline.svg)](https://gitlab.com/d-e-s-o/cargo-http-registry/commits/main)
 [![crates.io](https://img.shields.io/crates/v/cargo-http-registry.svg)](https://crates.io/crates/cargo-http-registry)
 [![rustc](https://img.shields.io/badge/rustc-1.59+-blue.svg)](https://blog.rust-lang.org/2022/02/24/Rust-1.59.0.html)
 
