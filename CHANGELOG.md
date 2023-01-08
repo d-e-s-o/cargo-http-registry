@@ -1,5 +1,5 @@
-Unreleased
-----------
+0.1.4
+-----
 - Switched to using GitHub Actions as CI provider
 - Bumped minimum supported Rust version to `1.60`
 - Bumped `git2` dependency to `0.15`
