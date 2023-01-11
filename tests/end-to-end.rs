@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Daniel Mueller <deso@posteo.net>
+// Copyright (C) 2021-2023 Daniel Mueller <deso@posteo.net>
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 use std::fs::create_dir;
@@ -124,9 +124,16 @@ async fn cargo_publish<'s, I>(home: &Path, args: I) -> Result<()>
 where
   I: IntoIterator<Item = &'s str>,
 {
-  let args = vec!["publish", "--locked", "--no-verify", "--allow-dirty"]
-    .into_iter()
-    .chain(args.into_iter());
+  let args = vec![
+    "publish",
+    "--locked",
+    "--no-verify",
+    "--allow-dirty",
+    "--registry",
+    REGISTRY,
+  ]
+  .into_iter()
+  .chain(args.into_iter());
 
   cargo(home, args).await
 }
