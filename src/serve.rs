@@ -1,4 +1,4 @@
-// Copyright (C) 2021-2022 Daniel Mueller <deso@posteo.net>
+// Copyright (C) 2021-2023 Daniel Mueller <deso@posteo.net>
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 use std::future::Future;
@@ -87,15 +87,12 @@ pub fn serve(root: &Path, addr: SocketAddr) -> Result<(impl Future<Output = ()>,
   let copy = shared.clone();
 
   // Serve the contents of <root>/.git at /git.
-  let index = warp::path("git")
-    .and(warp::fs::dir(root.join(".git")))
-    .with(warp::trace::request());
+  let index = warp::path("git").and(warp::fs::dir(root.join(".git")));
+  //.with(warp::trace::request());
   // Serve the contents of <root>/ at /crates. This allows for directly
   // downloading the .crate files, to which we redirect from the
   // download handler below.
-  let crates = warp::path("crates")
-    .and(warp::fs::dir(root.to_owned()))
-    .with(warp::trace::request());
+  let crates = warp::path("crates").and(warp::fs::dir(root.to_owned()));
   let download = warp::get()
     .and(warp::path("api"))
     .and(warp::path("v1"))
@@ -110,8 +107,7 @@ pub fn serve(root: &Path, addr: SocketAddr) -> Result<(impl Future<Output = ()>,
       //       and we can't use the response function because it will
       //       overwrite the HTTP status even on success.
       path.parse::<Uri>().map(warp::redirect).unwrap()
-    })
-    .with(warp::trace::request());
+    });
   let publish = warp::put()
     .and(warp::path("api"))
     .and(warp::path("v1"))
@@ -127,8 +123,7 @@ pub fn serve(root: &Path, addr: SocketAddr) -> Result<(impl Future<Output = ()>,
       let index = index.as_mut().unwrap();
       publish_crate(body, index).map(|()| String::new())
     })
-    .and_then(response)
-    .with(warp::trace::request());
+    .and_then(response);
 
   let mut addr = addr;
   let original_port = addr.port();
@@ -145,8 +140,9 @@ pub fn serve(root: &Path, addr: SocketAddr) -> Result<(impl Future<Output = ()>,
     let routes = index
       .clone()
       .or(crates.clone())
-      .or(download.clone())
-      .or(publish.clone());
+      .or(download)
+      .or(publish.clone())
+      .with(warp::trace::request());
     // Despite the claim that this function "Returns [...] a Future that
     // can be executed on any runtime." not even the call itself can
     // happen outside of a tokio runtime. Boy.

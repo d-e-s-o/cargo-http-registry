@@ -1,3 +1,8 @@
+Unreleased
+----------
+- Reduced log spam by de-duplicating request traces
+
+
 0.1.4
 -----
 - Switched to using GitHub Actions as CI provider
