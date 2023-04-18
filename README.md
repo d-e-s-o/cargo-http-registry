@@ -66,6 +66,9 @@ $ cargo publish --registry my-registry
    Uploading my-lib v0.1.0
 ```
 
+The created registry does not require any token checks. As such, if
+being asked to `cargo login` to the registry, any string may be used.
+
 You can also adjust the crate to only allow publishing to a certain
 registry, which will prevent accidental pushes to `crates.io`:
 ```diff
