@@ -18,13 +18,21 @@ env:
 
 jobs:
   test:
-    name: Build and test [${{ matrix.rust }}, ${{ matrix.profile }}]
-    runs-on: ubuntu-latest
+    name: Build and test [${{ matrix.runs-on }}, ${{ matrix.rust }}, ${{ matrix.profile }}]
     strategy:
       fail-fast: false
       matrix:
+        runs-on: [ubuntu-latest]
         rust: [1.60.0, stable]
         profile: [dev, release]
+        include:
+        - runs-on: macos-latest
+          rust: stable
+          profile: dev
+        - runs-on: windows-latest
+          rust: stable
+          profile: dev
+    runs-on: ${{ matrix.runs-on }}
     steps:
     - uses: actions/checkout@v3
     - uses: actions-rs/toolchain@v1
