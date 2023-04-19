@@ -8,6 +8,20 @@ license = "GPL-3.0-or-later"
 homepage = "https://github.com/d-e-s-o/cargo-http-registry"
 repository = "https://github.com/d-e-s-o/cargo-http-registry.git"
 readme = "README.md"
+categories = [
+  "command-line-utilities",
+  "config",
+  "database",
+  "development-tools",
+  "filesystem",
+]
+keywords = [
+  "cargo",
+  "registry",
+  "registry-server",
+  "http",
+  "filesystem",
+]
 description = """
 A cargo registry allowing for quick publishing of crates when using
 crates.io is just not desired.
