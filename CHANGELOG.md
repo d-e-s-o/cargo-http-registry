@@ -2,6 +2,7 @@ Unreleased
 ----------
 - Fixed Windows build caused by misspelled `cfg` argument
 - Reduced log spam by de-duplicating request traces
+- Added GitHub Actions workflow for publishing the crate
 
 
 0.1.4
