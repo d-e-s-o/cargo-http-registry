@@ -46,7 +46,7 @@ where
 {
   #[cfg(unix)]
   use std::os::unix::fs::symlink;
-  #[cfg(window)]
+  #[cfg(windows)]
   use std::os::windows::fs::symlink_dir as symlink;
 
   symlink(original, link)
