@@ -1,5 +1,5 @@
-Unreleased
-----------
+0.1.5
+-----
 - Fixed Windows build caused by misspelled `cfg` argument
 - Reduced log spam by de-duplicating request traces
 - Adjusted program to use Rust Edition 2021
