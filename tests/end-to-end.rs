@@ -23,6 +23,23 @@ use cargo_http_registry::serve;
 const REGISTRY: &str = "e2e-test-registry";
 
 
+/// Escape all occurrences of `character` in `string`.
+///
+/// # Panics
+/// The function panics if `character` is anything but a single ASCII
+/// character string.
+fn escape(character: &str, string: &str) -> String {
+  debug_assert_eq!(
+    character.len(),
+    1,
+    "string to escape (`{character}`) is not a single ASCII character"
+  );
+
+  // We escape characters by duplicating them.
+  string.replace(character, &(character.to_owned() + character))
+}
+
+
 /// A locator for a registry.
 enum Locator {
   /// A path on the file system to the root of the registry.
@@ -63,7 +80,9 @@ index = "file://{path}"
 token = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 "#,
         registry = REGISTRY,
-        path = path.display(),
+        // TODO: This is quite a ghetto way of escaping backslashes on,
+        //       say, Windows paths. We could make it nice some day...
+        path = escape("\\", &path.display().to_string()),
       )
     },
     Locator::Socket(addr) => {
