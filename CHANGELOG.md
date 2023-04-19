@@ -4,6 +4,7 @@ Unreleased
 - Reduced log spam by de-duplicating request traces
 - Adjusted program to use Rust Edition 2021
 - Added GitHub Actions workflow for publishing the crate
+- Bumped `git2` dependency to `0.17`
 
 
 0.1.4
