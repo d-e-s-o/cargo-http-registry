@@ -2,6 +2,7 @@ Unreleased
 ----------
 - Fixed Windows build caused by misspelled `cfg` argument
 - Reduced log spam by de-duplicating request traces
+- Adjusted program to use Rust Edition 2021
 - Added GitHub Actions workflow for publishing the crate
 
 
