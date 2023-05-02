@@ -1,3 +1,8 @@
+Unreleased
+----------
+- Include and manage `Cargo.lock` file in repository
+
+
 0.1.5
 -----
 - Fixed Windows build caused by misspelled `cfg` argument
