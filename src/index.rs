@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2022 Daniel Mueller <deso@posteo.net>
+// Copyright (C) 2020-2023 The cargo-http-registry Developers
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 use std::collections::BTreeMap;

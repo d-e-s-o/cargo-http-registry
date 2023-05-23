@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Daniel Mueller <deso@posteo.net>
+// Copyright (C) 2021-2023 The cargo-http-registry Developers
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 //! A crate providing a cargo registry accessible over HTTP.
