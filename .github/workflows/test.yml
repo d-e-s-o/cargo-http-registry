@@ -26,7 +26,7 @@ jobs:
       fail-fast: false
       matrix:
         runs-on: [ubuntu-latest]
-        rust: [1.60.0, stable]
+        rust: [stable]
         profile: [dev, release]
         include:
         - runs-on: macos-latest
@@ -49,6 +49,27 @@ jobs:
         git config --global user.email = "deso@posteo.net"
         cargo build --profile=${{ matrix.profile }} --all-targets
         cargo test --profile=${{ matrix.profile }}
+  build-minimum:
+    name: Build using minimum versions of dependencies
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Install Nightly Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: nightly
+      - run: cargo +nightly -Z minimal-versions update
+      - name: Install minimum Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          # Please adjust README and rust-version field in Cargo.toml files when
+          # bumping version.
+          toolchain: 1.60.0
+          default: true
+      - name: Build
+        run: cargo build --locked
   clippy:
     name: Lint with clippy
     runs-on: ubuntu-latest

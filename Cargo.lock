@@ -73,8 +73,12 @@ version = "0.1.5"
 dependencies = [
  "anyhow",
  "git2",
+ "headers",
+ "openssl-sys",
+ "pkg-config",
  "serde",
  "serde_json",
+ "serde_urlencoded",
  "sha2",
  "structopt",
  "tempfile",

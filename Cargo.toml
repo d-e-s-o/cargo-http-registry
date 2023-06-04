@@ -34,9 +34,9 @@ codegen-units = 1
 incremental = false
 
 [dependencies]
-anyhow = {version = "1.0"}
+anyhow = {version = "1.0.14"}
 git2 = {version = "0.17"}
-serde = {version = "1.0", features = ["derive"]}
+serde = {version = "1.0.1", features = ["derive"]}
 serde_json = {version = "1.0"}
 sha2 = {version = "0.10"}
 structopt = {version = "0.3.20"}
@@ -48,3 +48,13 @@ warp = {version = "0.3", default-features = false}
 [dev-dependencies]
 tempfile = {version = "3.1"}
 tokio = {version = "1.0", default-features = false, features = ["macros", "rt"]}
+
+# A set of unused dependencies that we require to force correct minimum
+# versions of transitive dependencies, for cases where our dependencies
+# have incorrect dependency specifications themselves.
+_headers_version_unused = {package = "headers", version = "0.3.1"}
+_pkg-config_unused = {package = "pkg-config", version = "0.3.16"}
+_serde_urlencoded_unused = {package = "serde_urlencoded", version = "0.7.1"}
+
+[target.'cfg(not(target_os = "windows"))'.dev-dependencies]
+_openssl_sys_unused = {package = "openssl-sys", version = "0.9.64"}
