@@ -107,6 +107,36 @@ setting, such as on a single computer or local home network. The reason
 being that, by design, it does not have any authentication scheme
 present and no attempts of hardening the code have been undertaken.
 
+Docker
+------
+
+To run the registry in a Docker container:
+
+```sh
+docker run -p 35504:35504 ghcr.io/d-e-s-o/cargo-http-registry:latest /tmp/test-registry -a 0.0.0.0:35504
+```
+
+To run `cargo-http-registry` in a docker compose file:
+
+```yaml
+version: "3"
+
+services:
+  registry:
+    image: ghcr.io/d-e-s-o/cargo-http-registry:latest
+    container_name: cargo-registry
+    restart: always
+    # Arguments:
+    # - Directory where the registry will store its data.
+    #   Cargo-http-registry creates the directory if it does not exist.
+    # - Server address.
+    #   Note that 127.0.0.1 doesn't work in GitHub actions.
+    #   Use 0.0.0.0 instead.
+    command: /tmp/test-registry -a 0.0.0.0:35504
+    ports:
+      - "35504:35504"
+```
+
 [cargo-config]: https://doc.rust-lang.org/cargo/reference/config.html
 [cargo-net-git-cli]: https://doc.rust-lang.org/cargo/reference/config.html#netgit-fetch-with-cli
 [docs-rs]: https://docs.rs/crate/cargo-http-registry
