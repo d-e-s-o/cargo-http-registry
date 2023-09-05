@@ -3,6 +3,7 @@ Unreleased
 - Added `Dockerfile` and adjusted CI to build and publish Docker image
   to GHCR
 - Include and manage `Cargo.lock` file in repository
+- Bumped minimum supported Rust version to `1.63`
 
 
 0.1.5
