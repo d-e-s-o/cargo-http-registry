@@ -59,7 +59,7 @@ jobs:
         with:
           profile: minimal
           toolchain: nightly
-      - run: cargo +nightly -Z minimal-versions update
+      - run: cargo +nightly -Z direct-minimal-versions update
       - name: Install minimum Rust
         uses: actions-rs/toolchain@v1
         with:
