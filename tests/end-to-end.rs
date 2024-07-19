@@ -1,5 +1,7 @@
-// Copyright (C) 2021-2023 The cargo-http-registry Developers
+// Copyright (C) 2021-2024 The cargo-http-registry Developers
 // SPDX-License-Identifier: GPL-3.0-or-later
+
+#![allow(clippy::ineffective_open_options)]
 
 use std::fs::create_dir;
 use std::fs::OpenOptions;

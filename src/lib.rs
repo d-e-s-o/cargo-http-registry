@@ -1,4 +1,4 @@
-// Copyright (C) 2021-2023 The cargo-http-registry Developers
+// Copyright (C) 2021-2024 The cargo-http-registry Developers
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 //! A crate providing a cargo registry accessible over HTTP.
@@ -8,6 +8,8 @@
 //! to be used in trusted contexts where authorization is unnecessary.
 //!
 //! [here]: https://doc.rust-lang.org/cargo/reference/registries.html
+
+#![allow(clippy::ineffective_open_options)]
 
 mod index;
 mod publish;
