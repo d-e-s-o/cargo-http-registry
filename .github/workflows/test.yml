@@ -4,8 +4,11 @@
 name: Test
 
 on:
-  push:
   pull_request:
+  push:
+    branches:
+      - '**'
+      - '!dependabot/**'
   workflow_call:
 
 env:
