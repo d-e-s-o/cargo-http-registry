@@ -1,4 +1,4 @@
-# Copyright (C) 2022-2023 The cargo-http-registry Developers
+# Copyright (C) 2022-2024 The cargo-http-registry Developers
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 name: Test
@@ -41,11 +41,9 @@ jobs:
     runs-on: ${{ matrix.runs-on }}
     steps:
     - uses: actions/checkout@v4
-    - uses: actions-rs/toolchain@v1
+    - uses: dtolnay/rust-toolchain@master
       with:
         toolchain: ${{ matrix.rust }}
-        profile: minimal
-        override: true
     - name: Build & test ${{ matrix.profile }}
       run: |
         git config --global user.name = "deso"
@@ -58,19 +56,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install Nightly Rust
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: nightly
+        uses: dtolnay/rust-toolchain@nightly
       - run: cargo +nightly -Z minimal-versions update
       - name: Install minimum Rust
-        uses: actions-rs/toolchain@v1
+        uses: dtolnay/rust-toolchain@master
         with:
-          profile: minimal
           # Please adjust README and rust-version field in Cargo.toml files when
           # bumping version.
           toolchain: 1.63.0
-          default: true
       - name: Build
         run: cargo build --locked
   clippy:
@@ -78,9 +71,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions-rs/toolchain@v1
+      - uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: stable
-          components: clippy
-          override: true
       - run: cargo clippy --no-deps --all-targets -- -A unknown_lints -A deprecated -D warnings
