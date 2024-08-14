@@ -357,4 +357,44 @@ mod tests {
     assert_eq!(&crate_path("abcd"), Path::new("ab/cd"));
     assert_eq!(&crate_path("ydasdayusiy"), Path::new("yd/as"));
   }
+
+  #[test]
+  fn convert_simple_dependency() {
+    // rand = { version = "0.8.5" }
+    let dep = Dep {
+      name: "rand".into(),
+      version_req: "0.8.5".into(),
+      features: vec![],
+      optional: false,
+      default_features: true,
+      target: None,
+      kind: Kind::Normal,
+      registry: None,
+      explicit_name_in_toml: None,
+    };
+
+    let index_dep = crate::index::Dep::from(dep);
+    assert_eq!(index_dep.name.as_str(), "rand"); // name of dependency
+    assert_eq!(index_dep.package, None); // null if dependency is not renamed
+  }
+
+  #[test]
+  fn convert_renamed_dependency() {
+    // renamed-rand = { version = "0.8.5", package = "rand" }
+    let dep = Dep {
+      name: "rand".into(),
+      version_req: "0.8.5".into(),
+      features: vec![],
+      optional: false,
+      default_features: true,
+      target: None,
+      kind: Kind::Normal,
+      registry: None,
+      explicit_name_in_toml: Some("renamed-rand".into()),
+    };
+
+    let index_dep = crate::index::Dep::from(dep);
+    assert_eq!(index_dep.name.as_str(), "renamed-rand"); // new name dependency was renamed to
+    assert_eq!(index_dep.package, Some("rand".into())); // name of dependency package
+  }
 }
