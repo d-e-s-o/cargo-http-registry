@@ -83,8 +83,12 @@ struct Dep {
 
 impl From<Dep> for crate::index::Dep {
   fn from(source: Dep) -> Self {
+    let (name, package) = match &source.explicit_name_in_toml {
+      Some(explicit) => (explicit.to_string(), Some(source.name.to_string())),
+      None => (source.name.to_string(), None),
+    };
     Self {
-      name: source.name,
+      name,
       req: source.version_req,
       features: source.features,
       optional: source.optional,
@@ -92,7 +96,7 @@ impl From<Dep> for crate::index::Dep {
       target: source.target,
       kind: source.kind.to_string(),
       registry: source.registry,
-      package: source.explicit_name_in_toml,
+      package,
     }
   }
 }
