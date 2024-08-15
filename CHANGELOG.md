@@ -1,5 +1,6 @@
 Unreleased
 ----------
+- Fixed handling of renamed packages
 - Added `Dockerfile` and adjusted CI to build and publish Docker image
   to GHCR
 - Include and manage `Cargo.lock` file in repository
