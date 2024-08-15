@@ -1,7 +1,9 @@
-// Copyright (C) 2020-2023 The cargo-http-registry Developers
+// Copyright (C) 2020-2024 The cargo-http-registry Developers
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 use std::collections::BTreeMap;
+use std::env;
+use std::ffi::OsString;
 use std::fs::create_dir_all;
 use std::fs::File;
 use std::fs::OpenOptions;
@@ -19,11 +21,18 @@ use anyhow::Context as _;
 use anyhow::Result;
 
 use git2::Repository;
+use git2::Signature;
 
 use serde::Deserialize;
 use serde::Serialize;
 use serde_json::from_reader;
 use serde_json::to_writer_pretty;
+
+
+/// The default user to use when creating a commit.
+const GIT_USER: &str = "cargo-http-registry";
+/// The default email to use when creating a commit.
+const GIT_EMAIL: &str = "cargo-http-registry@example.com";
 
 
 /// Parse the port from the given URL.
@@ -122,6 +131,10 @@ struct Config {
 pub struct Index {
   /// The root directory of the index.
   root: PathBuf,
+  /// The user to author git commits as.
+  git_user: String,
+  /// The email address used when creating git commits.
+  git_email: String,
   /// The git repository inside the index.
   repository: Repository,
 }
@@ -132,13 +145,29 @@ impl Index {
     P: Into<PathBuf>,
   {
     fn inner(root: PathBuf, addr: &SocketAddr) -> Result<Index> {
+      let git_user = env::var_os("GIT_AUTHOR_NAME").unwrap_or_else(|| OsString::from(GIT_USER));
+      let git_user = git_user
+        .to_str()
+        .context("GIT_AUTHOR_NAME does not contain valid UTF-8")?
+        .to_string();
+      let git_email = env::var_os("GIT_AUTHOR_EMAIL").unwrap_or_else(|| OsString::from(GIT_EMAIL));
+      let git_email = git_email
+        .to_str()
+        .context("GIT_AUTHOR_EMAIL does not contain valid UTF-8")?
+        .to_string();
+
       create_dir_all(&root)
         .with_context(|| format!("failed to create directory {}", root.display()))?;
 
       let repository = Repository::init(&root)
         .with_context(|| format!("failed to initialize git repository {}", root.display()))?;
 
-      let mut index = Index { root, repository };
+      let mut index = Index {
+        root,
+        git_user,
+        git_email,
+        repository,
+      };
       index.ensure_has_commit()?;
       index.ensure_config(addr)?;
       index.ensure_index_symlink()?;
@@ -198,10 +227,8 @@ impl Index {
       .is_empty()
       .context("unable to check git repository empty status")?;
 
-    let signature = self
-      .repository
-      .signature()
-      .context("failed to retrieve git signature object")?;
+    let signature = Signature::now(&self.git_user, &self.git_email)
+      .context("failed to create git signature object")?;
 
     if empty {
       self

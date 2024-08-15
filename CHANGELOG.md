@@ -1,6 +1,8 @@
 Unreleased
 ----------
 - Fixed handling of renamed packages
+- Stop requiring Git user configuration to be present by using
+  reasonable defaults
 - Added `Dockerfile` and adjusted CI to build and publish Docker image
   to GHCR
 - Include and manage `Cargo.lock` file in repository

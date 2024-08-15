@@ -23,8 +23,5 @@ RUN apt-get update && \
     apt-get install -y git && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
-RUN git config --global user.name = "cargo-http-registry"
-RUN git config --global user.email = "cargo-http-registry@example.com"
-
 COPY --from=builder /app/target/release/cargo-http-registry /usr/local/bin
 ENTRYPOINT ["cargo-http-registry"]
