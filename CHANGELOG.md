@@ -1,5 +1,5 @@
-Unreleased
-----------
+0.1.6
+-----
 - Fixed handling of renamed packages
 - Stop requiring Git user configuration to be present by using
   reasonable defaults
