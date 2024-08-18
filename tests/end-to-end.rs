@@ -205,6 +205,59 @@ async fn publish() {
 }
 
 
+/// Check that we can publish crates with a renamed dependency.
+#[tokio::test]
+async fn publish_renamed() {
+  let (_handle, _reg_root, addr) = serve_registry();
+
+  let src_root = tempdir().unwrap();
+  let src_root = src_root.path();
+  let home = setup_cargo_home(src_root, Locator::Socket(addr)).unwrap();
+
+  let lib1 = src_root.join("lib1");
+  cargo_init(&home, ["--lib", lib1.to_str().unwrap()])
+    .await
+    .unwrap();
+  let lib1_toml = lib1.join("Cargo.toml");
+  let lib1_toml = lib1_toml.to_str().unwrap();
+
+  let lib2 = src_root.join("lib2");
+  cargo_init(&home, ["--lib", lib2.to_str().unwrap()])
+    .await
+    .unwrap();
+  let data =
+    format!(r#"renamed_lib1 = {{package = "lib1", version = "*", registry = "{REGISTRY}"}}"#);
+  append(&lib2.join("Cargo.toml"), data).unwrap();
+  let lib2_toml = lib2.join("Cargo.toml");
+  let lib2_toml = lib2_toml.to_str().unwrap();
+
+  let lib3 = src_root.join("lib3");
+  cargo_init(&home, ["--lib", lib3.to_str().unwrap()])
+    .await
+    .unwrap();
+  let data = format!(r#"lib2 = {{version = "0.1.0", registry = "{REGISTRY}"}}"#);
+  append(&lib3.join("Cargo.toml"), data).unwrap();
+  let lib3_toml = lib3.join("Cargo.toml");
+  let lib3_toml = lib3_toml.to_str().unwrap();
+
+  cargo_publish(&home, ["--manifest-path", lib1_toml])
+    .await
+    .unwrap();
+
+  cargo_publish(&home, ["--manifest-path", lib2_toml])
+    .await
+    .unwrap();
+
+  cargo_publish(&home, ["--manifest-path", lib3_toml])
+    .await
+    .unwrap();
+
+  cargo(&home, ["check", "--manifest-path", lib3_toml])
+    .await
+    .unwrap();
+}
+
+
 async fn test_publish_and_consume(registry_locator: Locator) {
   let src_root = tempdir().unwrap();
   let src_root = src_root.path();
