@@ -1,6 +1,7 @@
 Unreleased
 ----------
 - Bumped minimum supported Rust version to `1.64`
+- Bumped `git2` dependency to `0.19`
 
 
 0.1.6
