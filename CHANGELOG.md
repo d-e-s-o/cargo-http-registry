@@ -1,3 +1,8 @@
+Unreleased
+----------
+- Bumped minimum supported Rust version to `1.64`
+
+
 0.1.6
 -----
 - Fixed handling of renamed packages
