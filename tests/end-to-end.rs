@@ -3,6 +3,7 @@
 
 #![allow(clippy::ineffective_open_options)]
 
+use std::env;
 use std::fs::create_dir;
 use std::fs::OpenOptions;
 use std::io::Write as _;
@@ -14,7 +15,7 @@ use std::process::Command;
 use anyhow::bail;
 use anyhow::Context as _;
 use anyhow::Result;
-
+use pathdiff::diff_paths;
 use tempfile::tempdir;
 
 use tokio::spawn;
@@ -50,6 +51,11 @@ enum Locator {
   Socket(SocketAddr),
 }
 
+
+enum RegistryRootPath {
+  Absolute,
+  Relative,
+}
 
 /// Append data to a file.
 fn append<B>(file: &Path, data: B) -> Result<()>
@@ -161,9 +167,12 @@ where
 
 
 /// Serve our registry.
-fn serve_registry() -> (JoinHandle<()>, PathBuf, SocketAddr) {
+fn serve_registry(root_path: RegistryRootPath) -> (JoinHandle<()>, PathBuf, SocketAddr) {
   let root = tempdir().unwrap();
-  let path = root.path().to_owned();
+  let path = match root_path {
+    RegistryRootPath::Absolute => root.path().to_owned(),
+    RegistryRootPath::Relative => diff_paths(root.path(), env::current_dir().unwrap()).unwrap(),
+  };
   let addr = "127.0.0.1:0".parse().unwrap();
 
   let (serve, addr) = serve(&path, addr).unwrap();
@@ -182,7 +191,32 @@ fn serve_registry() -> (JoinHandle<()>, PathBuf, SocketAddr) {
 /// Check that we can publish a crate.
 #[tokio::test]
 async fn publish() {
-  let (_handle, _reg_root, addr) = serve_registry();
+  let (_handle, _reg_root, addr) = serve_registry(RegistryRootPath::Absolute);
+
+  let src_root = tempdir().unwrap();
+  let src_root = src_root.path();
+  let home = setup_cargo_home(src_root, Locator::Socket(addr)).unwrap();
+
+  let my_lib = src_root.join("my-lib");
+  cargo_init(&home, ["--lib", my_lib.to_str().unwrap()])
+    .await
+    .unwrap();
+
+  cargo_publish(
+    &home,
+    [
+      "--manifest-path",
+      my_lib.join("Cargo.toml").to_str().unwrap(),
+    ],
+  )
+  .await
+  .unwrap();
+}
+
+
+#[tokio::test]
+async fn publish_relative_index_root() {
+  let (_handle, _reg_root, addr) = serve_registry(RegistryRootPath::Relative);
 
   let src_root = tempdir().unwrap();
   let src_root = src_root.path();
@@ -208,7 +242,7 @@ async fn publish() {
 /// Check that we can publish crates with a renamed dependency.
 #[tokio::test]
 async fn publish_renamed() {
-  let (_handle, _reg_root, addr) = serve_registry();
+  let (_handle, _reg_root, addr) = serve_registry(RegistryRootPath::Absolute);
 
   let src_root = tempdir().unwrap();
   let src_root = src_root.path();
@@ -307,7 +341,7 @@ async fn test_publish_and_consume(registry_locator: Locator) {
 /// Check that we can consume a published crate over HTTP.
 #[tokio::test]
 async fn get_http() {
-  let (_handle, _, addr) = serve_registry();
+  let (_handle, _, addr) = serve_registry(RegistryRootPath::Absolute);
   test_publish_and_consume(Locator::Socket(addr)).await
 }
 
@@ -315,6 +349,6 @@ async fn get_http() {
 /// Check that we can consume a published crate through the file system.
 #[tokio::test]
 async fn get_filesystem() {
-  let (_handle, root, _) = serve_registry();
+  let (_handle, root, _) = serve_registry(RegistryRootPath::Absolute);
   test_publish_and_consume(Locator::Path(root)).await
 }
