@@ -180,27 +180,16 @@ impl Index {
     inner(root, addr)
   }
 
-  /// Add a file to the index. Note that this operation only stages the
-  /// file. A commit will still be necessary to make it accessible.
-  pub fn add(&mut self, file: &Path) -> Result<()> {
-    let relative_path = if !file.is_relative() {
-      file.strip_prefix(&self.root).with_context(|| {
-        format!(
-          "failed to make {} relative to {}",
-          file.display(),
-          self.root.display()
-        )
-      })?
-    } else {
-      file
-    };
-
+  /// Add a file to the index. The path must be relative to the index root.
+  /// Note that this operation only stages the file. A commit will still be
+  /// necessary to make it accessible.
+  pub fn add(&mut self, relative_file_path: &Path) -> Result<()> {
     let mut index = self
       .repository
       .index()
       .context("failed to retrieve git repository index")?;
     index
-      .add_path(relative_path)
+      .add_path(relative_file_path)
       .context("failed to add file to git index")?;
     index
       .write()
@@ -496,5 +485,22 @@ mod tests {
 
     let statuses = index.repository.statuses(Some(&mut options)).unwrap();
     assert_eq!(statuses.len(), 0);
+  }
+
+  /// Ensure we can use some special names as relative index root.
+  #[test]
+  fn index_root_relative_path() {
+    let base = tempdir().unwrap();
+    env::set_current_dir(&base).unwrap();
+    let addr = "127.0.0.1:0".parse().unwrap();
+
+    for special_name in ["config.json", "index"] {
+      let relative_index_root = Path::new(special_name);
+      create_dir_all(relative_index_root).unwrap();
+
+      let index = Index::new(relative_index_root, &addr).unwrap();
+      // The repository should be clean.
+      assert_eq!(index.repository.state(), RepositoryState::Clean);
+    }
   }
 }

@@ -254,7 +254,8 @@ pub fn publish_crate(mut body: Bytes, index: &mut Index) -> Result<()> {
     "crate name contains non-ASCII characters"
   );
 
-  let crate_meta_dir = index.root().join(crate_path(&crate_name));
+  let crate_meta_relative_dir = crate_path(&crate_name);
+  let crate_meta_dir = index.root().join(&crate_meta_relative_dir);
   create_dir_all(&crate_meta_dir)
     .with_context(|| format!("failed to create directory {}", crate_meta_dir.display()))?;
 
@@ -265,7 +266,8 @@ pub fn publish_crate(mut body: Bytes, index: &mut Index) -> Result<()> {
 
   // TODO: We may want to sanitize `metadata.vers` somewhat.
   let data = read_crate(&mut body, crate_length).context("failed to read crate data")?;
-  let crate_meta_path = crate_meta_dir.join(&crate_name);
+  let crate_meta_relative_path = crate_meta_relative_dir.join(&crate_name);
+  let crate_meta_path = index.root().join(&crate_meta_relative_path);
 
   let mut file = OpenOptions::new()
     .write(true)
@@ -283,8 +285,8 @@ pub fn publish_crate(mut body: Bytes, index: &mut Index) -> Result<()> {
   to_writer(&mut file, &entry).context("failed to write crate index meta data")?;
   writeln!(file).context("failed to append new line to crate index meta data file")?;
 
-  let crate_file_name = crate_file_name(&crate_name, &crate_vers);
-  let crate_path = index.root().join(crate_file_name);
+  let crate_relative_path = PathBuf::from(crate_file_name(&crate_name, &crate_vers));
+  let crate_path = index.root().join(&crate_relative_path);
   let mut file = OpenOptions::new()
     .write(true)
     .create(true)
@@ -296,15 +298,20 @@ pub fn publish_crate(mut body: Bytes, index: &mut Index) -> Result<()> {
     .write(&data)
     .with_context(|| format!("failed to write to crate file {}", crate_path.display()))?;
 
-  index.add(&crate_meta_path).with_context(|| {
+  index.add(&crate_meta_relative_path).with_context(|| {
     format!(
-      "failed to add {} to git repository",
-      crate_meta_path.display()
+      "failed to add {} to git repository (full path: {})",
+      crate_meta_relative_path.display(),
+      crate_meta_path.display(),
     )
   })?;
   index
-    .add(&crate_path)
-    .with_context(|| format!("failed to add {} to git repository", crate_path.display()))?;
+    .add(&crate_relative_path)
+    .with_context(|| format!(
+      "failed to add {} to git repository (full path: {})",
+      crate_relative_path.display(),
+      crate_path.display(),
+    ))?;
   index
     .commit(&format!("Add {} in version {}", crate_name, crate_vers))
     .context("failed to commit changes to index")?;
