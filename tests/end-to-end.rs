@@ -1,4 +1,4 @@
-// Copyright (C) 2021-2024 The cargo-http-registry Developers
+// Copyright (C) 2021-2025 The cargo-http-registry Developers
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #![allow(clippy::ineffective_open_options)]
@@ -191,51 +191,31 @@ fn serve_registry(root_path: RegistryRootPath) -> (JoinHandle<()>, PathBuf, Sock
 /// Check that we can publish a crate.
 #[tokio::test]
 async fn publish() {
-  let (_handle, _reg_root, addr) = serve_registry(RegistryRootPath::Absolute);
+  async fn test(root_path: RegistryRootPath) {
+    let (_handle, _reg_root, addr) = serve_registry(root_path);
 
-  let src_root = tempdir().unwrap();
-  let src_root = src_root.path();
-  let home = setup_cargo_home(src_root, Locator::Socket(addr)).unwrap();
+    let src_root = tempdir().unwrap();
+    let src_root = src_root.path();
+    let home = setup_cargo_home(src_root, Locator::Socket(addr)).unwrap();
 
-  let my_lib = src_root.join("my-lib");
-  cargo_init(&home, ["--lib", my_lib.to_str().unwrap()])
+    let my_lib = src_root.join("my-lib");
+    cargo_init(&home, ["--lib", my_lib.to_str().unwrap()])
+      .await
+      .unwrap();
+
+    cargo_publish(
+      &home,
+      [
+        "--manifest-path",
+        my_lib.join("Cargo.toml").to_str().unwrap(),
+      ],
+    )
     .await
     .unwrap();
+  }
 
-  cargo_publish(
-    &home,
-    [
-      "--manifest-path",
-      my_lib.join("Cargo.toml").to_str().unwrap(),
-    ],
-  )
-  .await
-  .unwrap();
-}
-
-
-#[tokio::test]
-async fn publish_relative_index_root() {
-  let (_handle, _reg_root, addr) = serve_registry(RegistryRootPath::Relative);
-
-  let src_root = tempdir().unwrap();
-  let src_root = src_root.path();
-  let home = setup_cargo_home(src_root, Locator::Socket(addr)).unwrap();
-
-  let my_lib = src_root.join("my-lib");
-  cargo_init(&home, ["--lib", my_lib.to_str().unwrap()])
-    .await
-    .unwrap();
-
-  cargo_publish(
-    &home,
-    [
-      "--manifest-path",
-      my_lib.join("Cargo.toml").to_str().unwrap(),
-    ],
-  )
-  .await
-  .unwrap();
+  test(RegistryRootPath::Absolute).await;
+  test(RegistryRootPath::Relative).await;
 }
 
 
