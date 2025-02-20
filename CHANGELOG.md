@@ -1,5 +1,5 @@
-Unreleased
-----------
+0.1.7
+-----
 - Fixed handling of relative registry paths
 - Bumped minimum supported Rust version to `1.64`
 - Bumped `git2` dependency to `0.19`
