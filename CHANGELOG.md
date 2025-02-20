@@ -1,3 +1,8 @@
+Unreleased
+----------
+- Updated base image version used in Docker image
+
+
 0.1.7
 -----
 - Fixed handling of relative registry paths
