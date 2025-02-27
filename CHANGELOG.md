@@ -1,6 +1,7 @@
 Unreleased
 ----------
 - Removed `Dockerfile` and Docker image build CI job
+- Removed `Cargo.lock` file from repository
 - Bumped `git2` dependency to `0.20`
 
 

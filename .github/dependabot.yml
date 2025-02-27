@@ -1,4 +1,4 @@
-# Copyright (C) 2023-2024 The cargo-http-registry Developers
+# Copyright (C) 2023-2025 The cargo-http-registry Developers
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 # Please see the documentation for all configuration options:
@@ -17,7 +17,7 @@ updates:
     # lockfile changes could potentially conflict.
     open-pull-requests-limit: 1
     rebase-strategy: auto
-    versioning-strategy: lockfile-only
+    versioning-strategy: auto
     directory: /
     schedule:
       interval: daily
