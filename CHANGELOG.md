@@ -1,6 +1,6 @@
 Unreleased
 ----------
-- Updated base image version used in Docker image
+- Removed `Dockerfile` and Docker image build CI job
 - Bumped `git2` dependency to `0.20`
 
 
