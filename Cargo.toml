@@ -43,19 +43,12 @@ structopt = {version = "0.3.20"}
 tokio = {version = "1.34", default-features = false, features = ["rt"]}
 tracing = {version = "0.1", default-features = false, features = ["std"]}
 tracing-subscriber = {version = "0.3", default-features = false, features = ["ansi", "env-filter", "fmt"]}
-warp = {version = "0.3", default-features = false}
+warp = {version = "0.3.7", default-features = false}
 
 [dev-dependencies]
 tempfile = "3.1"
 test-fork = "0.1.3"
 tokio = {version = "1.34", default-features = false, features = ["macros", "rt"]}
-
-# A set of unused dependencies that we require to force correct minimum
-# versions of transitive dependencies, for cases where our dependencies
-# have incorrect dependency specifications themselves.
-_headers_version_unused = {package = "headers", version = "0.3.1"}
-_pkg-config_unused = {package = "pkg-config", version = "0.3.16"}
-_serde_urlencoded_unused = {package = "serde_urlencoded", version = "0.7.1"}
 
 [target.'cfg(not(target_os = "windows"))'.dev-dependencies]
 _openssl_sys_unused = {package = "openssl-sys", version = "0.9.64"}
