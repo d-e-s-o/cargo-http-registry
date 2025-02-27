@@ -15,11 +15,14 @@ use std::process::Command;
 use anyhow::bail;
 use anyhow::Context as _;
 use anyhow::Result;
-use pathdiff::diff_paths;
+
 use tempfile::tempdir;
+
+use test_fork::fork;
 
 use tokio::spawn;
 use tokio::task::JoinHandle;
+use tokio::test;
 
 use cargo_http_registry::serve;
 
@@ -167,11 +170,20 @@ where
 
 
 /// Serve our registry.
+///
+/// # Notes
+/// When invoked with `RegistryRootPath::Relative` this function changes
+/// the process' current working directory.
 fn serve_registry(root_path: RegistryRootPath) -> (JoinHandle<()>, PathBuf, SocketAddr) {
   let root = tempdir().unwrap();
   let path = match root_path {
     RegistryRootPath::Absolute => root.path().to_owned(),
-    RegistryRootPath::Relative => diff_paths(root.path(), env::current_dir().unwrap()).unwrap(),
+    RegistryRootPath::Relative => {
+      let base_dir = root.path().parent().unwrap();
+      let () = env::set_current_dir(base_dir).unwrap();
+      let index_dir = root.path().file_name().unwrap();
+      PathBuf::from(index_dir)
+    },
   };
   let addr = "127.0.0.1:0".parse().unwrap();
 
@@ -189,7 +201,11 @@ fn serve_registry(root_path: RegistryRootPath) -> (JoinHandle<()>, PathBuf, Sock
 
 
 /// Check that we can publish a crate.
-#[tokio::test]
+///
+/// Needs to run in separate process because it changes the working
+/// directory.
+#[test]
+#[fork]
 async fn publish() {
   async fn test(root_path: RegistryRootPath) {
     let (_handle, _reg_root, addr) = serve_registry(root_path);
@@ -220,7 +236,7 @@ async fn publish() {
 
 
 /// Check that we can publish crates with a renamed dependency.
-#[tokio::test]
+#[test]
 async fn publish_renamed() {
   let (_handle, _reg_root, addr) = serve_registry(RegistryRootPath::Absolute);
 
@@ -319,7 +335,7 @@ async fn test_publish_and_consume(registry_locator: Locator) {
 
 
 /// Check that we can consume a published crate over HTTP.
-#[tokio::test]
+#[test]
 async fn get_http() {
   let (_handle, _, addr) = serve_registry(RegistryRootPath::Absolute);
   test_publish_and_consume(Locator::Socket(addr)).await
@@ -327,7 +343,7 @@ async fn get_http() {
 
 
 /// Check that we can consume a published crate through the file system.
-#[tokio::test]
+#[test]
 async fn get_filesystem() {
   let (_handle, root, _) = serve_registry(RegistryRootPath::Absolute);
   test_publish_and_consume(Locator::Path(root)).await
