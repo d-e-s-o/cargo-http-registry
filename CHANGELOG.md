@@ -1,6 +1,7 @@
 Unreleased
 ----------
 - Updated base image version used in Docker image
+- Bumped `git2` dependency to `0.20`
 
 
 0.1.7

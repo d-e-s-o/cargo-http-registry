@@ -35,7 +35,7 @@ incremental = false
 
 [dependencies]
 anyhow = {version = "1.0.14"}
-git2 = {version = "0.19"}
+git2 = {version = "0.20"}
 serde = {version = "1.0.1", features = ["derive"]}
 serde_json = {version = "1.0"}
 sha2 = {version = "0.10"}
