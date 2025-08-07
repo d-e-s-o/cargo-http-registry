@@ -99,15 +99,13 @@ token = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
     Locator::Socket(addr) => {
       format!(
         r#"
-[registries.{registry}]
+[registries.{REGISTRY}]
 index = "http://{addr}/git"
 token = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 
 [net]
 git-fetch-with-cli = true
 "#,
-        registry = REGISTRY,
-        addr = addr,
       )
     },
   };
@@ -317,7 +315,7 @@ async fn test_publish_and_consume(registry_locator: Locator) {
   cargo_init(&home, ["--bin", my_bin.to_str().unwrap()])
     .await
     .unwrap();
-  let data = format!(r#"my-lib = {{version = "*", registry = "{}"}}"#, REGISTRY);
+  let data = format!(r#"my-lib = {{version = "*", registry = "{REGISTRY}"}}"#);
   append(&cargo_toml, data).unwrap();
 
   let data = "#[allow(unused_imports)] use my_lib::foo;\n";

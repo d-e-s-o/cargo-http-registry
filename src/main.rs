@@ -64,7 +64,7 @@ fn run() -> Result<()> {
 fn main() {
   let exit_code = run()
     .map(|_| 0)
-    .map_err(|e| eprintln!("{:?}", e))
+    .map_err(|e| eprintln!("{e:?}"))
     .unwrap_or(1);
 
   // We exit the process the hard way next, so make sure to flush

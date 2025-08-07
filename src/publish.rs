@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2023 The cargo-http-registry Developers
+// Copyright (C) 2020-2025 The cargo-http-registry Developers
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 use std::collections::BTreeMap;
@@ -176,7 +176,7 @@ impl From<(MetaData, &[u8])> for Entry {
 
 /// Craft the file name for a crate named `name` in version `version`.
 pub fn crate_file_name(name: &str, version: &str) -> String {
-  format!("{}-{}.crate", name, version)
+  format!("{name}-{version}.crate")
 }
 
 /// Extract and parse a `u32` value from a `Bytes` object.
@@ -305,15 +305,15 @@ pub fn publish_crate(mut body: Bytes, index: &mut Index) -> Result<()> {
       crate_meta_path.display(),
     )
   })?;
-  index
-    .add(&crate_relative_path)
-    .with_context(|| format!(
+  index.add(&crate_relative_path).with_context(|| {
+    format!(
       "failed to add {} to git repository (full path: {})",
       crate_relative_path.display(),
       crate_path.display(),
-    ))?;
+    )
+  })?;
   index
-    .commit(&format!("Add {} in version {}", crate_name, crate_vers))
+    .commit(&format!("Add {crate_name} in version {crate_vers}"))
     .context("failed to commit changes to index")?;
 
   if !body.is_empty() {

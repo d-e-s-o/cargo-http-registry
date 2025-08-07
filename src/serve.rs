@@ -1,4 +1,4 @@
-// Copyright (C) 2021-2023 The cargo-http-registry Developers
+// Copyright (C) 2021-2025 The cargo-http-registry Developers
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 use std::future::Future;
@@ -148,7 +148,7 @@ pub fn serve(root: &Path, addr: SocketAddr) -> Result<(impl Future<Output = ()>,
     // happen outside of a tokio runtime. Boy.
     let result = warp::serve(routes)
       .try_bind_ephemeral(addr)
-      .with_context(|| format!("failed to bind to {}", addr));
+      .with_context(|| format!("failed to bind to {addr}"));
 
     match result {
       Ok(result) => break result,

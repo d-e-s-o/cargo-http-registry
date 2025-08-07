@@ -42,7 +42,7 @@ fn parse_port(url: &str) -> Result<u16> {
     .nth(2)
     .ok_or_else(|| anyhow!("provided URL {} has unexpected format", url))?;
   let addr =
-    SocketAddr::from_str(addr).with_context(|| format!("failed to parse address {}", addr))?;
+    SocketAddr::from_str(addr).with_context(|| format!("failed to parse address {addr}"))?;
   Ok(addr.port())
 }
 
@@ -299,11 +299,8 @@ impl Index {
     match result {
       Ok(file) => {
         let mut config = from_reader::<_, Config>(&file).context("failed to parse config.json")?;
-        let dl = format!(
-          "http://{}/api/v1/crates/{{crate}}/{{version}}/download",
-          addr
-        );
-        let api = format!("http://{}", addr);
+        let dl = format!("http://{addr}/api/v1/crates/{{crate}}/{{version}}/download");
+        let api = format!("http://{addr}");
         if config.dl != dl || config.api.as_ref() != Some(&api) {
           config.dl = dl;
           config.api = Some(api);
@@ -326,11 +323,8 @@ impl Index {
       Err(err) if err.kind() == ErrorKind::NotFound => {
         let file = File::create(&path).context("failed to create config.json")?;
         let config = Config {
-          dl: format!(
-            "http://{}/api/v1/crates/{{crate}}/{{version}}/download",
-            addr
-          ),
-          api: Some(format!("http://{}", addr)),
+          dl: format!("http://{addr}/api/v1/crates/{{crate}}/{{version}}/download"),
+          api: Some(format!("http://{addr}")),
         };
         to_writer_pretty(&file, &config).context("failed to write config.json")?;
 
