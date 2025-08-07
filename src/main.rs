@@ -1,11 +1,9 @@
-// Copyright (C) 2020-2023 The cargo-http-registry Developers
+// Copyright (C) 2020-2025 The cargo-http-registry Developers
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-use std::io::stdout;
-use std::io::Write as _;
 use std::net::SocketAddr;
 use std::path::PathBuf;
-use std::process::exit;
+use std::process::ExitCode;
 
 use anyhow::Context as _;
 use anyhow::Result;
@@ -61,14 +59,9 @@ fn run() -> Result<()> {
   Ok(())
 }
 
-fn main() {
-  let exit_code = run()
-    .map(|_| 0)
+fn main() -> ExitCode {
+  run()
+    .map(|_| ExitCode::SUCCESS)
     .map_err(|e| eprintln!("{e:?}"))
-    .unwrap_or(1);
-
-  // We exit the process the hard way next, so make sure to flush
-  // buffered content.
-  let _ = stdout().flush();
-  exit(exit_code)
+    .unwrap_or(ExitCode::FAILURE)
 }
