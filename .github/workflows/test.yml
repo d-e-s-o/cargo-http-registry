@@ -40,7 +40,7 @@ jobs:
           profile: dev
     runs-on: ${{ matrix.runs-on }}
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
     - uses: dtolnay/rust-toolchain@master
       with:
         toolchain: ${{ matrix.rust }}
@@ -54,7 +54,7 @@ jobs:
     name: Build using minimum versions of dependencies
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - name: Install Nightly Rust
         uses: dtolnay/rust-toolchain@nightly
       - run: cargo +nightly -Z minimal-versions update
@@ -70,7 +70,7 @@ jobs:
     name: Lint with clippy
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: stable
