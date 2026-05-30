@@ -1,3 +1,10 @@
+Unreleased
+----------
+- Honor `RUST_LOG` for logging configuration when `-v` / `--verbosity`
+  is not provided
+- Log messages using local time zone instead of UTC
+
+
 0.1.8
 -----
 - Removed `Dockerfile` and Docker image build CI job

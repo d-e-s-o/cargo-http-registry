@@ -1,6 +1,7 @@
-// Copyright (C) 2020-2025 The cargo-http-registry Developers
+// Copyright (C) 2020-2026 The cargo-http-registry Developers
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+use std::env::var_os;
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::process::ExitCode;
@@ -12,8 +13,9 @@ use structopt::StructOpt;
 use tokio::runtime::Builder;
 
 use tracing::subscriber::set_global_default as set_global_subscriber;
+use tracing_subscriber::filter::EnvFilter;
 use tracing_subscriber::filter::LevelFilter;
-use tracing_subscriber::fmt::time::SystemTime;
+use tracing_subscriber::fmt::time::ChronoLocal;
 use tracing_subscriber::FmtSubscriber;
 
 use cargo_http_registry::serve;
@@ -34,22 +36,54 @@ pub struct Args {
   verbosity: usize,
 }
 
+fn init_logging(verbosity: usize) -> Result<()> {
+  enum Filter {
+    Level(LevelFilter),
+    Env(String),
+  }
+
+  let filter = match verbosity {
+    0 => {
+      // Check if `RUST_LOG` is present and honor it if so.
+      if let Some(env) = var_os(EnvFilter::DEFAULT_ENV) {
+        let directive = env
+          .into_string()
+          .ok()
+          .with_context(|| format!("env var `{}` is not valid UTF-8", EnvFilter::DEFAULT_ENV))?;
+
+        Filter::Env(directive)
+      } else {
+        // Use 'warn' as the default level.
+        Filter::Level(LevelFilter::WARN)
+      }
+    },
+    1 => Filter::Level(LevelFilter::INFO),
+    2 => Filter::Level(LevelFilter::DEBUG),
+    _ => Filter::Level(LevelFilter::TRACE),
+  };
+
+  let builder =
+    FmtSubscriber::builder().with_timer(ChronoLocal::new("%Y-%m-%dT%H:%M:%S%.3f%:z".to_string()));
+  match filter {
+    Filter::Level(level) => {
+      let subscriber = builder.with_max_level(level).finish();
+      let () =
+        set_global_subscriber(subscriber).with_context(|| "failed to set tracing subscriber")?;
+    },
+    Filter::Env(directive) => {
+      let subscriber = builder
+        .with_env_filter(EnvFilter::try_new(directive).context("invalid tracing directive")?)
+        .finish();
+      let () =
+        set_global_subscriber(subscriber).with_context(|| "failed to set tracing subscriber")?;
+    },
+  }
+  Ok(())
+}
 
 fn run() -> Result<()> {
   let args = Args::from_args_safe()?;
-  let level = match args.verbosity {
-    0 => LevelFilter::WARN,
-    1 => LevelFilter::INFO,
-    2 => LevelFilter::DEBUG,
-    _ => LevelFilter::TRACE,
-  };
-
-  let subscriber = FmtSubscriber::builder()
-    .with_max_level(level)
-    .with_timer(SystemTime)
-    .finish();
-
-  set_global_subscriber(subscriber).context("failed to set tracing subscriber")?;
+  let () = init_logging(args.verbosity).context("failed to initialize logging infrastructure")?;
 
   let rt = Builder::new_current_thread().enable_io().build().unwrap();
   let _guard = rt.enter();
