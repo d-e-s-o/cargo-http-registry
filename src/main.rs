@@ -1,6 +1,7 @@
 // Copyright (C) 2020-2026 The cargo-http-registry Developers
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+use std::env::args_os;
 use std::env::var_os;
 use std::net::SocketAddr;
 use std::path::PathBuf;
@@ -83,8 +84,7 @@ fn init_logging(verbosity: u8) -> Result<()> {
   Ok(())
 }
 
-fn run() -> Result<()> {
-  let args = Args::parse();
+fn run(args: Args) -> Result<()> {
   let () = init_logging(args.verbosity).context("failed to initialize logging infrastructure")?;
 
   let rt = Builder::new_current_thread().enable_io().build().unwrap();
@@ -96,7 +96,17 @@ fn run() -> Result<()> {
 }
 
 fn main() -> ExitCode {
-  run()
+  let args = match Args::try_parse_from(args_os()) {
+    Ok(args) => args,
+    Err(err) => {
+      let _result = err.print();
+      return u8::try_from(err.exit_code())
+        .map(ExitCode::from)
+        .unwrap_or(ExitCode::FAILURE)
+    },
+  };
+
+  run(args)
     .map(|_| ExitCode::SUCCESS)
     .map_err(|e| eprintln!("{e:?}"))
     .unwrap_or(ExitCode::FAILURE)
