@@ -9,7 +9,9 @@ use std::process::ExitCode;
 use anyhow::Context as _;
 use anyhow::Result;
 
-use structopt::StructOpt;
+use clap::ArgAction;
+use clap::Parser;
+
 use tokio::runtime::Builder;
 
 use tracing::subscriber::set_global_default as set_global_subscriber;
@@ -22,21 +24,21 @@ use cargo_http_registry::serve;
 
 
 /// A struct defining the accepted arguments.
-#[derive(Debug, StructOpt)]
+#[derive(Debug, Parser)]
 pub struct Args {
   /// The root directory of the registry.
-  #[structopt(name = "REGISTRY_ROOT", parse(from_os_str))]
+  #[clap(name = "REGISTRY_ROOT")]
   root: PathBuf,
   /// The address to serve on. By default we serve on 127.0.0.1 on an
   /// ephemeral port.
-  #[structopt(short, long, default_value = "127.0.0.1:0")]
+  #[clap(short, long, default_value = "127.0.0.1:0")]
   addr: SocketAddr,
   /// Increase verbosity (can be supplied multiple times).
-  #[structopt(short = "v", long = "verbose", global = true, parse(from_occurrences))]
-  verbosity: usize,
+  #[clap(short = 'v', long = "verbose", global = true, action = ArgAction::Count)]
+  verbosity: u8,
 }
 
-fn init_logging(verbosity: usize) -> Result<()> {
+fn init_logging(verbosity: u8) -> Result<()> {
   enum Filter {
     Level(LevelFilter),
     Env(String),
@@ -82,7 +84,7 @@ fn init_logging(verbosity: usize) -> Result<()> {
 }
 
 fn run() -> Result<()> {
-  let args = Args::from_args_safe()?;
+  let args = Args::parse();
   let () = init_logging(args.verbosity).context("failed to initialize logging infrastructure")?;
 
   let rt = Builder::new_current_thread().enable_io().build().unwrap();

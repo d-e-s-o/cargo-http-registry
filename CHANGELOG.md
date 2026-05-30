@@ -3,6 +3,7 @@ Unreleased
 - Honor `RUST_LOG` for logging configuration when `-v` / `--verbosity`
   is not provided
 - Log messages using local time zone instead of UTC
+- Switched to `clap` crate for argument handling
 
 
 0.1.8
