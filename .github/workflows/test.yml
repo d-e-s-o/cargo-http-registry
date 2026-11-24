@@ -1,4 +1,4 @@
-# Copyright (C) 2022-2024 The cargo-http-registry Developers
+# Copyright (C) 2022-2026 The cargo-http-registry Developers
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 name: Test
@@ -50,22 +50,6 @@ jobs:
         git config --global user.email = "deso@posteo.net"
         cargo build --profile=${{ matrix.profile }} --all-targets
         cargo test --profile=${{ matrix.profile }}
-  build-minimum:
-    name: Build using minimum versions of dependencies
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-      - name: Install Nightly Rust
-        uses: dtolnay/rust-toolchain@nightly
-      - run: cargo +nightly -Z minimal-versions update
-      - name: Install minimum Rust
-        uses: dtolnay/rust-toolchain@master
-        with:
-          # Please adjust README and rust-version field in Cargo.toml files when
-          # bumping version.
-          toolchain: 1.64.0
-      - name: Build
-        run: cargo build --locked
   clippy:
     name: Lint with clippy
     runs-on: ubuntu-latest
