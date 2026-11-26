@@ -1,5 +1,5 @@
-Unreleased
-----------
+0.1.9
+-----
 - Added support for host names in `--addr` provided address
 - Honor `RUST_LOG` for logging configuration when `-v` / `--verbosity`
   is not provided
