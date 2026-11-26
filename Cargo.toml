@@ -34,15 +34,16 @@ incremental = false
 
 [dependencies]
 anyhow = {version = "1.0.14"}
+bytes = {version = "1"}
 clap = {version = "4.2", features = ["derive"]}
 git2 = {version = "0.20"}
 serde = {version = "1.0.1", features = ["derive"]}
 serde_json = {version = "1.0"}
 sha2 = {version = "0.10"}
-tokio = {version = "1.34", default-features = false, features = ["rt"]}
+tokio = {version = "1.34", default-features = false, features = ["net", "rt"]}
 tracing = {version = "0.1", default-features = false, features = ["std"]}
 tracing-subscriber = {version = "0.3", default-features = false, features = ["ansi", "chrono", "env-filter", "fmt"]}
-warp = {version = "0.3.7", default-features = false}
+warp = {version = "0.4", default-features = false, features = ["server"]}
 
 [dev-dependencies]
 tempfile = "3.1"

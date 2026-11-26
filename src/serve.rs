@@ -1,8 +1,9 @@
-// Copyright (C) 2021-2025 The cargo-http-registry Developers
+// Copyright (C) 2021-2026 The cargo-http-registry Developers
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 use std::future::Future;
 use std::net::SocketAddr;
+use std::net::TcpListener;
 use std::path::Path;
 use std::sync::Arc;
 use std::sync::Mutex;
@@ -136,18 +137,9 @@ pub fn serve(root: &Path, addr: SocketAddr) -> Result<(impl Future<Output = ()>,
     }
   }
 
-  let (addr, serve) = loop {
-    let routes = index
-      .clone()
-      .or(crates.clone())
-      .or(download)
-      .or(publish.clone())
-      .with(warp::trace::request());
-    // Despite the claim that this function "Returns [...] a Future that
-    // can be executed on any runtime." not even the call itself can
-    // happen outside of a tokio runtime. Boy.
-    let result = warp::serve(routes)
-      .try_bind_ephemeral(addr)
+  let (listener, addr) = loop {
+    let result = TcpListener::bind(addr)
+      .and_then(|listener| listener.local_addr().map(|addr| (listener, addr)))
       .with_context(|| format!("failed to bind to {addr}"));
 
     match result {
@@ -158,6 +150,32 @@ pub fn serve(root: &Path, addr: SocketAddr) -> Result<(impl Future<Output = ()>,
       },
       Err(err) => return Err(err),
     }
+  };
+
+  let routes = index
+    .or(crates)
+    .or(download)
+    .or(publish)
+    .with(warp::trace::request())
+    // Box the filter to erase its concrete type. Without it, Tokio
+    // task submission of our server future may fail to infer its
+    // `Send` capability [1].
+    //
+    // [1] https://github.com/seanmonstar/warp/issues/1139
+    .boxed();
+
+  // Warp only accepts connections from a Tokio listener, but
+  // converting ours requires a runtime context that we may not have
+  // before the returned future is polled. Defer the conversion to
+  // here, then. Note that the conversion also requires the listener
+  // to be non-blocking.
+  let serve = async move {
+    let () = listener
+      .set_nonblocking(true)
+      .expect("failed to set listener to non-blocking mode");
+    let listener =
+      tokio::net::TcpListener::from_std(listener).expect("failed to create tokio listener");
+    warp::serve(routes).incoming(listener).run().await
   };
 
   let index = Index::new(root, &addr).with_context(|| {

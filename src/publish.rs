@@ -19,6 +19,8 @@ use anyhow::ensure;
 use anyhow::Context as _;
 use anyhow::Result;
 
+use bytes::Bytes;
+
 use sha2::Digest as _;
 use sha2::Sha256;
 
@@ -28,8 +30,6 @@ use serde_json::from_slice;
 use serde_json::to_writer;
 
 use tracing::warn;
-
-use warp::hyper::body::Bytes;
 
 use crate::index::Entry;
 use crate::index::Index;
