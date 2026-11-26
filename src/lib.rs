@@ -1,4 +1,4 @@
-// Copyright (C) 2021-2024 The cargo-http-registry Developers
+// Copyright (C) 2021-2026 The cargo-http-registry Developers
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 //! A crate providing a cargo registry accessible over HTTP.
@@ -15,4 +15,6 @@ mod index;
 mod publish;
 mod serve;
 
+pub use serve::Addr;
+pub use serve::parse_addr;
 pub use serve::serve;

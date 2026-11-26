@@ -9,11 +9,9 @@ use std::fs::File;
 use std::fs::OpenOptions;
 use std::io;
 use std::io::ErrorKind;
-use std::net::SocketAddr;
 use std::path::Path;
 use std::path::PathBuf;
 use std::process::Command;
-use std::str::FromStr as _;
 
 use anyhow::anyhow;
 use anyhow::ensure;
@@ -28,6 +26,9 @@ use serde::Serialize;
 use serde_json::from_reader;
 use serde_json::to_writer_pretty;
 
+use crate::serve::Addr;
+use crate::serve::parse_addr;
+
 
 /// The default user to use when creating a commit.
 const GIT_USER: &str = "cargo-http-registry";
@@ -41,9 +42,8 @@ fn parse_port(url: &str) -> Result<u16> {
     .split('/')
     .nth(2)
     .ok_or_else(|| anyhow!("provided URL {} has unexpected format", url))?;
-  let addr =
-    SocketAddr::from_str(addr).with_context(|| format!("failed to parse address {addr}"))?;
-  Ok(addr.port())
+  let (_, port) = parse_addr(addr).with_context(|| format!("failed to parse address {addr}"))?;
+  Ok(port)
 }
 
 
@@ -140,11 +140,11 @@ pub struct Index {
 }
 
 impl Index {
-  pub fn new<P>(root: P, addr: &SocketAddr) -> Result<Self>
+  pub fn new<P>(root: P, addr: &Addr) -> Result<Self>
   where
     P: Into<PathBuf>,
   {
-    fn inner(root: PathBuf, addr: &SocketAddr) -> Result<Index> {
+    fn inner(root: PathBuf, addr: &Addr) -> Result<Index> {
       let git_user = env::var_os("GIT_AUTHOR_NAME").unwrap_or_else(|| OsString::from(GIT_USER));
       let git_user = git_user
         .to_str()
@@ -293,14 +293,15 @@ impl Index {
   }
 
   /// Ensure that a valid `config.json` exists and that it is up-to-date.
-  fn ensure_config(&mut self, addr: &SocketAddr) -> Result<()> {
+  fn ensure_config(&mut self, addr: &Addr) -> Result<()> {
+    let (host, port) = addr;
     let path = self.root.join("config.json");
     let result = OpenOptions::new().read(true).write(true).open(&path);
     match result {
       Ok(file) => {
         let mut config = from_reader::<_, Config>(&file).context("failed to parse config.json")?;
-        let dl = format!("http://{addr}/api/v1/crates/{{crate}}/{{version}}/download");
-        let api = format!("http://{addr}");
+        let dl = format!("http://{host}:{port}/api/v1/crates/{{crate}}/{{version}}/download");
+        let api = format!("http://{host}:{port}");
         if config.dl != dl || config.api.as_ref() != Some(&api) {
           config.dl = dl;
           config.api = Some(api);
@@ -323,8 +324,8 @@ impl Index {
       Err(err) if err.kind() == ErrorKind::NotFound => {
         let file = File::create(&path).context("failed to create config.json")?;
         let config = Config {
-          dl: format!("http://{addr}/api/v1/crates/{{crate}}/{{version}}/download"),
-          api: Some(format!("http://{addr}")),
+          dl: format!("http://{host}:{port}/api/v1/crates/{{crate}}/{{version}}/download"),
+          api: Some(format!("http://{host}:{port}")),
         };
         to_writer_pretty(&file, &config).context("failed to write config.json")?;
 
@@ -381,7 +382,6 @@ mod tests {
   use super::*;
 
   use std::io::Write as _;
-  use std::str::FromStr;
 
   use git2::RepositoryState;
   use git2::StatusOptions;
@@ -399,12 +399,15 @@ mod tests {
 
     let port = parse_port("https://192.168.0.254:1").unwrap();
     assert_eq!(port, 1);
+
+    let port = parse_port("http://example.com:8081").unwrap();
+    assert_eq!(port, 8081);
   }
 
   #[test]
   fn empty_index_repository() {
     let root = tempdir().unwrap();
-    let addr = SocketAddr::from_str("192.168.0.1:9999").unwrap();
+    let addr = parse_addr("192.168.0.1:9999").unwrap();
     let index = Index::new(root.as_ref(), &addr).unwrap();
 
     assert_eq!(index.repository.state(), RepositoryState::Clean);
@@ -428,7 +431,7 @@ mod tests {
     // We always assume some valid JSON in the config.
     file.write_all(br#"{"dl":"foobar"}"#).unwrap();
 
-    let addr = SocketAddr::from_str("254.0.0.0:1").unwrap();
+    let addr = parse_addr("254.0.0.0:1").unwrap();
     let index = Index::new(root.as_ref(), &addr).unwrap();
 
     assert_eq!(index.repository.state(), RepositoryState::Clean);
@@ -450,7 +453,7 @@ mod tests {
   #[test]
   fn recreate_index() {
     let root = tempdir().unwrap();
-    let addr = "127.0.0.1:0".parse().unwrap();
+    let addr = parse_addr("127.0.0.1:0").unwrap();
 
     {
       let _index = Index::new(root.path(), &addr).unwrap();
@@ -466,7 +469,7 @@ mod tests {
   #[test]
   fn no_untracked_files() {
     let root = tempdir().unwrap();
-    let addr = "127.0.0.1:0".parse().unwrap();
+    let addr = parse_addr("127.0.0.1:0").unwrap();
     let index = Index::new(root.path(), &addr).unwrap();
 
     // The repository should be clean.
@@ -492,7 +495,7 @@ mod tests {
   fn index_root_relative_path() {
     let base = tempdir().unwrap();
     let () = env::set_current_dir(&base).unwrap();
-    let addr = "127.0.0.1:0".parse().unwrap();
+    let addr = parse_addr("127.0.0.1:0").unwrap();
 
     for special_name in ["config.json", "index"] {
       let relative_index_root = Path::new(special_name);

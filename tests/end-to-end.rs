@@ -7,7 +7,6 @@ use std::env;
 use std::fs::create_dir;
 use std::fs::OpenOptions;
 use std::io::Write as _;
-use std::net::SocketAddr;
 use std::path::Path;
 use std::path::PathBuf;
 use std::process::Command;
@@ -24,6 +23,8 @@ use tokio::spawn;
 use tokio::task::JoinHandle;
 use tokio::test;
 
+use cargo_http_registry::Addr;
+use cargo_http_registry::parse_addr;
 use cargo_http_registry::serve;
 
 const REGISTRY: &str = "e2e-test-registry";
@@ -50,8 +51,8 @@ fn escape(character: &str, string: &str) -> String {
 enum Locator {
   /// A path on the file system to the root of the registry.
   Path(PathBuf),
-  /// A socket address for HTTP based access of the registry.
-  Socket(SocketAddr),
+  /// An address for HTTP based access of the registry.
+  Socket(Addr),
 }
 
 
@@ -96,11 +97,11 @@ token = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
         path = escape("\\", &path.display().to_string()),
       )
     },
-    Locator::Socket(addr) => {
+    Locator::Socket((host, port)) => {
       format!(
         r#"
 [registries.{REGISTRY}]
-index = "http://{addr}/git"
+index = "http://{host}:{port}/git"
 token = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 
 [net]
@@ -172,7 +173,7 @@ where
 /// # Notes
 /// When invoked with `RegistryRootPath::Relative` this function changes
 /// the process' current working directory.
-fn serve_registry(root_path: RegistryRootPath) -> (JoinHandle<()>, PathBuf, SocketAddr) {
+fn serve_registry(root_path: RegistryRootPath) -> (JoinHandle<()>, PathBuf, Addr) {
   let root = tempdir().unwrap();
   let path = match root_path {
     RegistryRootPath::Absolute => root.path().to_owned(),
@@ -183,7 +184,7 @@ fn serve_registry(root_path: RegistryRootPath) -> (JoinHandle<()>, PathBuf, Sock
       PathBuf::from(index_dir)
     },
   };
-  let addr = "127.0.0.1:0".parse().unwrap();
+  let addr = parse_addr("127.0.0.1:0").unwrap();
 
   let (serve, addr) = serve(&path, addr).unwrap();
   let serve = move || async {

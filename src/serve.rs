@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 use std::future::Future;
-use std::net::SocketAddr;
 use std::net::TcpListener;
 use std::path::Path;
 use std::sync::Arc;
@@ -11,6 +10,7 @@ use std::sync::Mutex;
 use anyhow::Context as _;
 use anyhow::Error;
 use anyhow::Result;
+use anyhow::bail;
 
 use serde::Deserialize;
 use serde::Serialize;
@@ -26,6 +26,31 @@ use warp::Reply as _;
 use crate::index::Index;
 use crate::publish::crate_file_name;
 use crate::publish::publish_crate;
+
+
+/// An address to serve on, consisting of a host/IP address and a port.
+pub type Addr = (String, u16);
+
+
+/// Parse an address of the form `<host>:<port>`.
+///
+/// The host may be an IPv4 address, a quoted IPv6 address such as
+/// `[::1]:8080`, or a host name.
+pub fn parse_addr(string: &str) -> Result<Addr> {
+  let (host, port) = string
+    .rsplit_once(':')
+    .with_context(|| format!("failed to find port in address `{string}`"))?;
+
+  let quoted = host.starts_with('[') && host.ends_with(']');
+  if host.is_empty() || (host.contains(':') && !quoted) {
+    bail!("invalid host `{host}` in address `{string}`")
+  }
+
+  let port = port
+    .parse::<u16>()
+    .with_context(|| format!("invalid port `{port}` in address `{string}`"))?;
+  Ok((host.to_owned(), port))
+}
 
 
 /// A single error that the registry returns.
@@ -77,8 +102,8 @@ where
 }
 
 
-/// Serve a registry at the given path on the given socket address.
-pub fn serve(root: &Path, addr: SocketAddr) -> Result<(impl Future<Output = ()>, SocketAddr)> {
+/// Serve a registry at the given path on the given address.
+pub fn serve(root: &Path, addr: Addr) -> Result<(impl Future<Output = ()>, Addr)> {
   // Unfortunately because of how we have to define our routes in order
   // to create our server and we need a server in order to bind it while
   // also needing to bind in order to have the necessary address for the
@@ -126,31 +151,38 @@ pub fn serve(root: &Path, addr: SocketAddr) -> Result<(impl Future<Output = ()>,
     })
     .and_then(response);
 
-  let mut addr = addr;
-  let original_port = addr.port();
+  let (host, mut port) = addr;
+  let original_port = port;
   // If the port is kernel-assigned then see if we can just use the
   // same one we used last time, to prevent needless updates of our
   // configuration file.
-  if addr.port() == 0 {
-    if let Ok(port) = Index::try_read_port(root) {
-      addr.set_port(port)
+  if port == 0 {
+    if let Ok(reused) = Index::try_read_port(root) {
+      port = reused
     }
   }
 
-  let (listener, addr) = loop {
-    let result = TcpListener::bind(addr)
+  let (listener, bound_addr) = loop {
+    // Binding wants a plain IPv6 address, but we keep ours quoted,
+    // as that is the form our URLs need. Note that binding a host
+    // name resolves it first, with every address yielded then tried
+    // in turn by the standard library.
+    let bind_addr = (host.trim_start_matches('[').trim_end_matches(']'), port);
+    let result = TcpListener::bind(bind_addr)
       .and_then(|listener| listener.local_addr().map(|addr| (listener, addr)))
-      .with_context(|| format!("failed to bind to {addr}"));
+      .with_context(|| format!("failed to bind to {host}:{port}"));
 
     match result {
       Ok(result) => break result,
-      Err(_) if addr.port() != original_port => {
+      Err(_) if port != original_port => {
         // We retry with the original port.
-        addr.set_port(original_port);
+        port = original_port
       },
       Err(err) => return Err(err),
     }
   };
+
+  let addr = (host, bound_addr.port());
 
   let routes = index
     .or(crates)
@@ -195,9 +227,43 @@ pub fn serve(root: &Path, addr: SocketAddr) -> Result<(impl Future<Output = ()>,
 mod tests {
   use super::*;
 
+  use std::fs::File;
+
+  use serde_json::Value;
+  use serde_json::from_reader;
   use serde_json::to_string;
 
+  use tempfile::tempdir;
 
+
+  /// Check that we accept the addresses we want to support and
+  /// reject the ones we do not.
+  #[test]
+  fn address_parsing() {
+    assert_eq!(
+      parse_addr("127.0.0.1:8080").unwrap(),
+      ("127.0.0.1".to_string(), 8080)
+    );
+    assert_eq!(parse_addr("[::1]:80").unwrap(), ("[::1]".to_string(), 80));
+    assert_eq!(
+      parse_addr("example.com:8081").unwrap(),
+      ("example.com".to_string(), 8081)
+    );
+
+    for invalid in [
+      "",
+      "localhost",
+      ":80",
+      "::1:80",
+      "example.com:not-a-port",
+      "http://example.com:80",
+    ] {
+      let result = parse_addr(invalid);
+      assert!(result.is_err(), "{result:?}");
+    }
+  }
+
+  /// Make sure the JSON encoding of [`RegistryErrors`] is as expected.
   #[test]
   fn registry_error_encoding() {
     let expected = r#"{"errors":[{"detail":"error message text"}]}"#;
@@ -208,5 +274,20 @@ mod tests {
     };
 
     assert_eq!(to_string(&errors).unwrap(), expected);
+  }
+
+  /// Test that serving on an address with a host name preserves that
+  /// name where desired.
+  #[test]
+  fn host_name_serving() {
+    let root = tempdir().unwrap();
+    let (_serve, addr) = serve(root.path(), parse_addr("localhost:0").unwrap()).unwrap();
+
+    assert_eq!(addr.0, "localhost");
+    assert_ne!(addr.1, 0);
+
+    let file = File::open(root.path().join("config.json")).unwrap();
+    let config = from_reader::<_, Value>(&file).unwrap();
+    assert_eq!(config["api"], format!("http://localhost:{}", addr.1));
   }
 }

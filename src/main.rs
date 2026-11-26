@@ -3,7 +3,6 @@
 
 use std::env::args_os;
 use std::env::var_os;
-use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::process::ExitCode;
 
@@ -21,6 +20,8 @@ use tracing_subscriber::filter::LevelFilter;
 use tracing_subscriber::fmt::time::ChronoLocal;
 use tracing_subscriber::FmtSubscriber;
 
+use cargo_http_registry::Addr;
+use cargo_http_registry::parse_addr;
 use cargo_http_registry::serve;
 
 
@@ -30,10 +31,11 @@ pub struct Args {
   /// The root directory of the registry.
   #[clap(name = "REGISTRY_ROOT")]
   root: PathBuf,
-  /// The address to serve on. By default we serve on 127.0.0.1 on an
-  /// ephemeral port.
-  #[clap(short, long, default_value = "127.0.0.1:0")]
-  addr: SocketAddr,
+  /// The address to serve on. The host part may be an IP address
+  /// or a host name. By default we serve on 127.0.0.1 on an ephemeral
+  /// port.
+  #[clap(short, long, default_value = "127.0.0.1:0", value_parser = parse_addr)]
+  addr: Addr,
   /// Increase verbosity (can be supplied multiple times).
   #[clap(short = 'v', long = "verbose", global = true, action = ArgAction::Count)]
   verbosity: u8,
